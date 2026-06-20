@@ -91,7 +91,7 @@ ROM "Intel 4001 256 x 8 bit ROM chip" (ROM/8, ADDR, ROM_PORT/4, IO/1)
 
 RESET:
 
-    $CLEAR.
+    $CLEAR.  ; clear all ROM variables
 
 ROM READ =UINT/4($INSTANCE)nnnnnnnn:
 
@@ -170,7 +170,7 @@ RAM "Intel 4002 4 x 320 bit RAM bank" (ADDR, MEM/4, STAT/4, RAM_PORT/4, OUT/1)
 
 RESET:
 
-    $CLEAR.
+    $CLEAR.  ; clear all RAM variables
 
 ADDR =UINT/3($INSTANCE)nnnnnnnn:
 
@@ -202,6 +202,10 @@ RAM_PORT WRITE =UINT/3($INSTANCE)xxxxxxxx:
 
 
 CPU "Intel 4004 CPU" (ROM/8, ADDR, ROM_PORT/4, RAM_PORT/4, MEM/4, STAT/4, TEST/1)
+
+    ; default clock rate is 740 kHz (1.35 microseconds per cycle):
+
+    CLOCK_RATE = 740
 {
     ; registers:
 
@@ -246,7 +250,9 @@ CPU "Intel 4004 CPU" (ROM/8, ADDR, ROM_PORT/4, RAM_PORT/4, MEM/4, STAT/4, TEST/1
 
 RESET:
 
-    $CLEAR.          ; clear all variables (RAM should clear itself as well)
+    $CYCLE_FREQ = CLOCK_RATE.
+
+    $CLEAR.          ; clear all CPU variables
     $FETCH = ROM/8.  ; bind opcode fetch to bus ROM/8
 
 OPCODE 0000xxxx:
@@ -298,13 +304,13 @@ OPCODE 0010rrr0 dddddddd:
 
     $CYCLES(16).
 
-OPCODE 0010rrr1 dddddddd:
+OPCODE 0010rrr1:
 
     ; SRC (send register control):
 
     ADDR(RAM_BANK << 8 | REG/8(UINT/3(r))).
 
-    $CYCLES(16).
+    $CYCLES(8).
 
 OPCODE 0011rrr0:
 
@@ -342,7 +348,7 @@ OPCODE 0101hhhh llllllll:
 
 OPCODE 0110rrrr:
 
-    ; INC (increment):
+    ; INC (increment register):
 
     REG/4(UINT/4(r)) += 1.  ; may overflow
 
@@ -350,7 +356,7 @@ OPCODE 0110rrrr:
 
 OPCODE 0111rrrr llllllll:
 
-    ; ISZ (increment and skip):
+    ; ISZ (increment register and skip):
 
     REG/4(UINT/4(r)) += 1.  ; may overflow
 
@@ -363,7 +369,7 @@ OPCODE 0111rrrr llllllll:
 
 OPCODE 1000rrrr:
 
-    ; ADD (add with carry):
+    ; ADD (add register with carry):
 
     A/4 += REG/4(UINT/4(r)) + $FLAGS/1.
 
@@ -372,7 +378,7 @@ OPCODE 1000rrrr:
 
 OPCODE 1001rrrr:
 
-    ; SUB (sub with borrow):
+    ; SUB (subtract register with borrow):
 
     A/4 += ~REG/4(UINT/4(r)) + ~$FLAGS/1.
 
@@ -381,7 +387,7 @@ OPCODE 1001rrrr:
 
 OPCODE 1010rrrr:
 
-    ; LD (load):
+    ; LD (load accumulator from register):
 
     A/4 = REG/4(UINT/4(r)).
 
@@ -389,7 +395,7 @@ OPCODE 1010rrrr:
 
 OPCODE 1011rrrr:
 
-    ; XCH (exchange):
+    ; XCH (exchange accumulator with register):
 
     A/4 <> REG/4(UINT/4(r)).
 
@@ -397,7 +403,7 @@ OPCODE 1011rrrr:
 
 OPCODE 1100dddd:
 
-    ; BBL (branch back and load):
+    ; BBL (branch back and load accumulator):
 
     ADDRESS_STACK_POP.
 
@@ -407,7 +413,7 @@ OPCODE 1100dddd:
 
 OPCODE 1101dddd:
 
-    ; LDM (load immediate):
+    ; LDM (load accumulator):
 
     A/4 = UINT/4(d).
 
@@ -415,7 +421,7 @@ OPCODE 1101dddd:
 
 OPCODE 11100000:
 
-    ; WRM (write main memory):
+    ; WRM (write accumulator to main memory):
 
     MEM/4(RAM_BANK/3 << 8) = A/4.
 
@@ -423,7 +429,7 @@ OPCODE 11100000:
 
 OPCODE 11100001:
 
-    ; WMP (write RAM port):
+    ; WMP (write accumulator to RAM port):
 
     RAM_PORT/4(RAM_BANK/3 << 8) = A/4.
 
@@ -431,7 +437,7 @@ OPCODE 11100001:
 
 OPCODE 11100010:
 
-    ; WRR (write ROM port):
+    ; WRR (write accumulator to ROM port):
 
     ROM_PORT/4 = A/4.
 
@@ -439,7 +445,7 @@ OPCODE 11100010:
 
 OPCODE 111001ss:
 
-    ; WRx (write status char):
+    ; WRx (write accumulator to status char #x):
 
     STAT/4((RAM_BANK/3 << 8) | UINT/2(s)) = A/4.
 
@@ -447,7 +453,7 @@ OPCODE 111001ss:
 
 OPCODE 11101000:
 
-    ; SBM (subtract main memory):
+    ; SBM (subtract main memory with borrow):
 
     A/4 += ~MEM/4(RAM_BANK/3 << 8) + ~$FLAGS/1.
 
@@ -456,7 +462,7 @@ OPCODE 11101000:
 
 OPCODE 11101001:
 
-    ; RDM (read main memory):
+    ; RDM (read accumulator from main memory):
 
     A/4 = MEM/4(RAM_BANK/3 << 8).
 
@@ -464,7 +470,7 @@ OPCODE 11101001:
 
 OPCODE 11101010:
 
-    ; RDR (read ROM port):
+    ; RDR (read accumulator from ROM port):
 
     A/4 = ROM_PORT/4.
 
@@ -472,7 +478,7 @@ OPCODE 11101010:
 
 OPCODE 11101011:
 
-    ; ADM (add main memory):
+    ; ADM (add main memory with carry):
 
     A/4 += MEM/4(RAM_BANK/3 << 8) + $FLAGS/1.
 
@@ -481,7 +487,7 @@ OPCODE 11101011:
 
 OPCODE 111011ss:
 
-    ; RDx (read status char):
+    ; RDx (read accumulator from status char #):
 
     A/4 = STAT/4((RAM_BANK/3 << 8) | UINT/2(s)).
 
@@ -489,7 +495,7 @@ OPCODE 111011ss:
 
 OPCODE 11110000:
 
-    ; CLB (clear both):
+    ; CLB (clear accumulator and carry):
 
     A/4 = 0.
 
@@ -521,7 +527,7 @@ OPCODE 11110011:
 
 OPCODE 11110100:
 
-    ; CMA (complement):
+    ; CMA (complement accumulator):
 
     A/4 = ~A/4.
 
@@ -529,7 +535,7 @@ OPCODE 11110100:
 
 OPCODE 11110101:
 
-    ; RAL (rotate left):
+    ; RAL (rotate accumulator left):
 
     A/4 <<<= 1.  ; rotate without carry
 
@@ -541,7 +547,7 @@ OPCODE 11110101:
 
 OPCODE 11110110:
 
-    ; RAR (rotate right):
+    ; RAR (rotate accumulator right):
 
     $FLAGS/1 ^= A/4.  ; swap least significand bit with carry
     A/4 ^= $FLAGS/1.

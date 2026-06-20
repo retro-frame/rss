@@ -1,0 +1,591 @@
+RFFF/1.0?RSS/1.0
+
+;------------------------------------------------------------------------------
+;
+;  RETRO-FRAME INTEL MCS-8 RETRO SYSTEM SPECIFICATION
+;
+;  Copyright (c) 2026 Ingo Boehmer
+;
+;  Repository:  <http://source.retro-frame.net/rss>
+;  File:        /res/MCS-8.rss//
+;  Compliance:  Retro-Frame 1.0
+;  License:     MIT
+;
+;------------------------------------------------------------------------------
+
+
+CPU "Intel 8008 CPU" (MEM/8, PORT/8, INT/8)
+
+    ; default clock rate is 500 kHz (2 microseconds per cycle):
+
+    CLOCK_RATE = 500
+{
+    ; registers:
+
+    VAR REG/8(7) A, B, C, D, E, H, L.
+
+    READ HL/14
+    {
+        HL/14 = REG/8(H) << 8 | REG/8(L).
+    }
+
+    ; $FLAGS bits (P = parity, S = sign, Z = zero, C = carry):
+
+    ; +---+---+---+---+
+    ; | P | S | Z | C |
+    ; +---+---+---+---+
+
+    VAR ADDRESS_STACK/14(8).
+
+    VAR ADDRESS_STACK_PTR/3.
+
+    DEF ADDRESS_STACK_PUSH
+    {
+        ADDRESS_STACK/14(ADDRESS_STACK_PTR/3) = $.
+
+        ADDRESS_STACK_PTR/3 += 1.  ; may overflow
+    }
+
+    DEF ADDRESS_STACK_POP
+    {
+        ADDRESS_STACK_PTR/3 -= 1.  ; may underflow
+
+        $ = ADDRESS_STACK/14(ADDRESS_STACK_PTR/3).
+    }
+
+RESET:
+
+    $CYCLE_FREQ = CLOCK_RATE.
+
+    $CLEAR.          ; clear all CPU variables
+    $FETCH = MEM/8.  ; bind opcode fetch to bus MEM/8
+
+OPCODE 00rrr000:
+
+    IF (UINT/3(r) == 0)
+    {
+        ; HLT (halt):
+
+        $HALT.
+        $CYCLES(8).
+    }
+    ELIF (UINT/3(r) < 7)
+    {
+        ; INr (increment register):
+
+        REG/8(UINT/3(r)) += 1.
+
+        $FLAGS/4(PF, SF, ZF, ?).
+        $CYCLES(10).
+    }
+    ELSE
+    {
+        $OPCODE_INVALID.
+        $CYCLES(10).
+    }
+
+OPCODE 00rrr001:
+
+    IF (UINT/3(r) == 0)
+    {
+        ; HLT (halt):
+
+        $HALT.
+        $CYCLES(8).
+    }
+    ELIF (UINT/3(r) < 7)
+    {
+        ; DCr (decrement register):
+
+        REG/8(UINT/3(r)) += 1.
+
+        $FLAGS/4(PF, SF, ZF, ?).
+        $CYCLES(10).
+    }
+    ELSE
+    {
+        $OPCODE_INVALID.
+        $CYCLES(10).
+    }
+
+OPCODE 00000010:
+
+    ; RLC (rotate left):
+
+    REG/8(A) <<<= 1.
+
+    $FLAGS/4(?, ?, ?, REG/8(A) & 1).
+    $CYCLES(10).
+
+OPCODE 000cc011:
+
+    ; RFc (return if condition is false):
+
+    IF (!(FLAGS/4 & (1 << UINT/2(c))))
+    {
+        ADDRESS_STACK_POP.
+
+        $CYCLES(4).  ; total cycles will be 10
+    }
+
+    $CYCLES(6).
+
+OPCODE 001cc011:
+
+    ; RTc (return if condition is true):
+
+    IF (FLAGS/4 & (1 << UINT/2(c)))
+    {
+        ADDRESS_STACK_POP.
+
+        $CYCLES(4).  ; total cycles will be 10
+    }
+
+    $CYCLES(6).
+
+OPCODE 00000100 bbbbbbbb:
+
+    ; ADI (add immediate):
+
+    REG/8(A) += UINT/8(b).
+
+    $FLAGS/4(PF, SF, ZF, CF).
+    $CYCLES(16).
+
+OPCODE 00001100 bbbbbbbb:
+
+    ; ACI (add immediate with carry):
+
+    REG/8(A) += UINT/8(b) + (FLAGS/4 & 1).
+
+    $FLAGS/4(PF, SF, ZF, CF).
+    $CYCLES(16).
+
+OPCODE 00010100 bbbbbbbb:
+
+    ; SUI (subtract immediate):
+
+    REG/8(A) -= UINT/8(b).
+
+    $FLAGS/4(PF, SF, ZF, CF).
+    $CYCLES(16).
+
+OPCODE 00011100 bbbbbbbb:
+
+    ; SBI (subtract immediate with borrow):
+
+    REG/8(A) -= UINT/8(b) + (FLAGS/4 & 1).
+
+    $FLAGS/4(PF, SF, ZF, CF).
+    $CYCLES(16).
+
+OPCODE 001x0010:
+
+    $OPCODE_INVALID.
+    $CYCLES(10).
+
+OPCODE 00100100 bbbbbbbb:
+
+    ; NDI (and immediate):
+
+    REG/8(A) &= UINT/8(b).
+
+    $FLAGS/4(PF, SF, ZF, CF).
+    $CYCLES(16).
+
+OPCODE 00101100 bbbbbbbb:
+
+    ; XRI (xor immediate):
+
+    REG/8(A) ^= UINT/8(b).
+
+    $FLAGS/4(PF, SF, ZF, CF).
+    $CYCLES(16).
+
+OPCODE 00110100 bbbbbbbb:
+
+    ; ORI (or immediate):
+
+    REG/8(A) |= UINT/8(b).
+
+    $FLAGS/4(PF, SF, ZF, CF).
+    $CYCLES(16).
+
+OPCODE 00111100 bbbbbbbb:
+
+    ; CPI (compare immediate):
+
+    REG/8(A) - UINT/8(b).
+
+    $FLAGS/4(PF, SF, ZF, CF).
+    $CYCLES(16).
+
+OPCODE 00aaa101:
+
+    ; RST (restart):
+
+    ADDRESS_STACK_PUSH.
+
+    $ = UINT/3(a) << 3.
+    $CYCLES(10).
+
+OPCODE 00rrr110 bbbbbbbb:
+
+    IF (UINT/3(r) < 7)
+    {
+        ; LrI (load register immediate):
+
+        REG/8(UINT/3(r)) = UINT/8(b).
+        $CYCLES(16).
+    }
+    ELSE
+    {
+        ; LMI (load memory immediate):
+
+        MEM/8(HL/14) = UINT/8(b).
+        $CYCLES(18).
+    }
+
+OPCODE 00xxx111:
+
+    ; RET (unconditional return):
+
+    ADDRESS_STACK_POP.
+
+    $CYCLES(10).
+
+OPCODE 00001010:
+
+    ; RRC (rotate right):
+
+    $FLAGS/4(?, ?, ?, REG/8(A) & 1).
+
+    REG/8(A) >>>= 1.
+
+    $CYCLES(10).
+
+OPCODE 00010010:
+
+    ; RAL (rotate arithmetic left):
+
+    REG/8(A) <<<= 1.
+
+    FLAGS/4 ^= REG/8(A) & 1.
+    REG/8(A) ^= FLAGS/4 & 1.
+    FLAGS/4 ^= REG/8(A) & 1.
+
+    $CYCLES(10).
+
+OPCODE 00011010:
+
+    ; RAR (rotate arithmetic right):
+
+    FLAGS/4 ^= REG/8(A) & 1.
+    REG/8(A) ^= FLAGS/4 & 1.
+    FLAGS/4 ^= REG/8(A) & 1.
+
+    REG/8(A) >>>= 1.
+
+    $CYCLES(10).
+
+OPCODE 010cc000 llllllll xxhhhhhh:
+
+    ; JFc (jump if condition is false):
+
+    IF (!(FLAGS/4 & (1 << UINT/2(c))))
+    {
+        $ = UINT/8(l) | UINT/6(h) << 8.
+
+        $CYCLES(4).  ; total cycles will be 22
+    }
+
+    $CYCLES(18).
+
+OPCODE 011cc000 llllllll xxhhhhhh:
+
+    ; JTc (jump if condition is true):
+
+    IF (FLAGS/4 & (1 << UINT/2(c)))
+    {
+        $ = UINT/8(l) | UINT/6(h) << 8.
+
+        $CYCLES(4).  ; total cycles will be 22
+    }
+
+    $CYCLES(18).
+
+OPCODE 01rrmmm1:
+
+    IF (UINT/2(r) == 0)
+    {
+        ; INP (input from port):
+
+        REG/8(A) = PORT/8(UINT/3(m)).
+
+        $CYCLES(16).
+    }
+    ELSE
+    {
+        ; OUT (output to port):
+
+        PORT/8(UINT/3(m) | UINT/2(r) << 3) = REG/8(A).
+
+        $CYCLES(12).
+    }
+
+OPCODE 010cc010 llllllll xxhhhhhh:
+
+    ; CFc (call if condition is false):
+
+    IF (!(FLAGS/4 & (1 << UINT/2(c))))
+    {
+        ADDRESS_STACK_PUSH.
+
+        $ = UINT/8(l) | UINT/6(h) << 8.
+
+        $CYCLES(4).  ; total cycles will be 22
+    }
+
+    $CYCLES(18).
+
+OPCODE 011cc010 llllllll xxhhhhhh:
+
+    ; CTc (call if condition is true):
+
+    IF (FLAGS/4 & (1 << UINT/2(c)))
+    {
+        ADDRESS_STACK_PUSH.
+
+        $ = UINT/8(l) | UINT/6(h) << 8.
+
+        $CYCLES(4).  ; total cycles will be 22
+    }
+
+    $CYCLES(18).
+
+OPCODE 01xxx100:
+
+    ; JMP (unconditional jump):
+
+    $ = UINT/8(l) | UINT/6(h) << 8.
+
+    $CYCLES(22).
+
+OPCODE 01xxx110:
+
+    ; CAL (unconditional call):
+
+    ADDRESS_STACK_PUSH.
+
+    $ = UINT/8(l) | UINT/6(h) << 8.
+
+    $CYCLES(22).
+
+OPCODE 10000rrr:
+
+    IF (UINT/3(r) < 7)
+    {
+        ; ADr (add register):
+
+        REG/8(A) += REG/8(UINT/3(r)).
+
+        $CYCLES(10).
+    }
+    ELSE
+    {
+        ; ADM (add memory):
+
+        REG/8(A) += MEM/8(HL/14).
+
+        $CYCLES(16).
+    }
+
+    $FLAGS/4(PF, SF, ZF, CF).
+
+OPCODE 10001rrr:
+
+    IF (UINT/3(r) < 7)
+    {
+        ; ACr (add register with carry):
+
+        REG/8(A) += REG/8(UINT/3(r)) + (FLAGS/4 & 1).
+
+        $CYCLES(10).
+    }
+    ELSE
+    {
+        ; ACM (add memory with carry):
+
+        REG/8(A) += MEM/8(HL/14) + (FLAGS/4 & 1).
+
+        $CYCLES(16).
+    }
+
+    $FLAGS/4(PF, SF, ZF, CF).
+
+OPCODE 10010rrr:
+
+    IF (UINT/3(r) < 7)
+    {
+        ; SUr (sub register):
+
+        REG/8(A) -= REG/8(UINT/3(r)).
+
+        $CYCLES(10).
+    }
+    ELSE
+    {
+        ; SUM (sub memory):
+
+        REG/8(A) -= MEM/8(HL/14).
+
+        $CYCLES(16).
+    }
+
+    $FLAGS/4(PF, SF, ZF, CF).
+
+OPCODE 10011rrr:
+
+    IF (UINT/3(r) < 7)
+    {
+        ; SBr (sub register with borrow):
+
+        REG/8(A) -= REG/8(UINT/3(r)) + (FLAGS/4 & 1).
+
+        $CYCLES(10).
+    }
+    ELSE
+    {
+        ; SBM (sub memory with borrow):
+
+        REG/8(A) -= MEM/8(HL/14) + (FLAGS/4 & 1).
+
+        $CYCLES(16).
+    }
+
+    $FLAGS/4(PF, SF, ZF, CF).
+
+OPCODE 10100rrr:
+
+    IF (UINT/3(r) < 7)
+    {
+        ; NDr (and register):
+
+        REG/8(A) &= REG/8(UINT/3(r)).
+
+        $CYCLES(10).
+    }
+    ELSE
+    {
+        ; NDM (and memory):
+
+        REG/8(A) &= MEM/8(HL/14).
+
+        $CYCLES(16).
+    }
+
+    $FLAGS/4(PF, SF, ZF, CF).
+
+OPCODE 10101rrr:
+
+    IF (UINT/3(r) < 7)
+    {
+        ; XRr (xor register):
+
+        REG/8(A) ^= REG/8(UINT/3(r)).
+
+        $CYCLES(10).
+    }
+    ELSE
+    {
+        ; XRM (xor memory):
+
+        REG/8(A) ^= MEM/8(HL/14).
+
+        $CYCLES(16).
+    }
+
+    $FLAGS/4(PF, SF, ZF, CF).
+
+OPCODE 10110rrr:
+
+    IF (UINT/3(r) < 7)
+    {
+        ; ORr (or register):
+
+        REG/8(A) |= REG/8(UINT/3(r)).
+
+        $CYCLES(10).
+    }
+    ELSE
+    {
+        ; ORM (or memory):
+
+        REG/8(A) |= MEM/8(HL/14).
+
+        $CYCLES(16).
+    }
+
+    $FLAGS/4(PF, SF, ZF, CF).
+
+OPCODE 10111rrr:
+
+    IF (UINT/3(r) < 7)
+    {
+        ; CPr (compare register):
+
+        REG/8(A) - REG/8(UINT/3(r)).
+
+        $CYCLES(10).
+    }
+    ELSE
+    {
+        ; CPM (compare memory):
+
+        REG/8(A) - MEM/8(HL/14).
+
+        $CYCLES(16).
+    }
+
+    $FLAGS/4(PF, SF, ZF, CF).
+
+OPCODE 11dddsss:
+
+    IF ((UINT/3(d) < 7) && (UINT/3(s) < 7))
+    {
+        ; Lds (load register from register):
+
+        REG/8(UINT/3(d)) = REG/8(UINT/3(s)).
+
+        $CYCLES(10).
+    }
+    ELIF (UINT/3(d) < 7)
+    {
+        ; LdM (load register from memory):
+
+        REG/8(UINT/3(d)) = MEM/8(HL/14).
+
+        $CYCLES(16).
+    }
+    ELIF (UINT/3(s) < 7)
+    {
+        ; LMs (load memory from register):
+
+        MEM/8(HL/14) = REG/8(UINT/3(d)).
+
+        $CYCLES(16).
+    }
+    ELSE
+    {
+        ; HLT (halt):
+
+        $HALT.
+        $CYCLES(8).
+    }
+
+INT:
+
+    ; interrupt request:
+
+    $FETCH_ONCE = INT/8.  ; fetch one instruction, do not advance $
+}

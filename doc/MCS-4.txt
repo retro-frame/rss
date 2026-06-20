@@ -77,7 +77,7 @@ Contents
    5.3  RAM status character access
    5.4  Port I/O
 
-6. INSTRUCTION SET
+6. INSTRUCTION SET SUMMARY
 
 
 
@@ -700,5 +700,63 @@ instruction follows.
 
 
 
-6. INSTRUCTION SET
+6. INSTRUCTION SET SUMMARY
 ===============================================================================
+
+For a detailed specification of each instruction, see /res/MCS-4.rss//.
+
+  opcode             mnemonic  descripton                            cycles
+  -----------------  --------  ------------------------------------  ------
+  00000000           NOP       no operation                               8
+  0001cccc aaaaaaaa  JCN       jump conditional                          16
+  0010rrr0 dddddddd  FIM       fetch immediate                           16
+  0010rrr1           SRC       send register control                      8
+  0011rrr0           FIN       fetch indirect                            16
+  0011rrr1           JIN       jump indirect                              8
+  0100aaaa aaaaaaaa  JUN       jump unconditional                        16
+  0101aaaa aaaaaaaa  JMS       jump subroutine                           16
+  0110rrrr           INC       increment register                         8
+  0111rrrr aaaaaaaa  ISZ       increment register and skip               16
+  1000rrrr           ADD       add register with carry                    8
+  1001rrrr           SUB       subtract register with borrow              8
+  1010rrrr           LD        load accumulator from register             8
+  1011rrrr           XCH       exchange accumulator with register         8
+  1100dddd           BBL       branch back and load accumulator           8
+  1101dddd           LDM       load accumulator                           8
+  11100000           WRM       write accumulator to main memory           8
+  11100001           WMP       write accumulator to RAM port              8
+  11100010           WRR       write accumulator to ROM port              8
+  11100100           WR0       write accumulator to status char #0        8
+  11100101           WR1       write accumulator to status char #1        8
+  11100102           WR2       write accumulator to status char #2        8
+  11100103           WR3       write accumulator to status char #3        8
+  11101000           SBM       subtract main memory with borrow           8
+  11101001           RDM       read accumulator from main memory          8
+  11101010           RDR       read accumulator from ROM port             8
+  11101011           ADM       add main memory with carry                 8
+  11101100           RD0       read accumulator from status char #0       8
+  11101101           RD1       read accumulator from status char #1       8
+  11101102           RD2       read accumulator from status char #2       8
+  11101103           RD3       read accumulator from status char #3       8
+  11110000           CLB       clear accumulator and carry                8
+  11110001           CLC       clear carry                                8
+  11110010           IAC       increment accumulator                      8
+  11110011           CMC       complement carry                           8
+  11110100           CMA       complement accumulator                     8
+  11110101           RAL       rotate accumulator left                    8
+  11110110           RAR       rotate accumulator right                   8
+  11110111           TCC       transfer carry and clear                   8
+  11111000           DAC       decrement accumulator                      8
+  11111001           TCS       transfer carry substract                   8
+  11111010           STC       set carry                                  8
+  11111011           DAA       decimal adjust accumulator                 8
+  11111100           KBP       keyboard process                           8
+  11111101           DCL       designate command line                     8
+
+Opcode letters:
+
+- cccc  stands for a condition
+- rrrr  stands for a 4-bit register
+- rrr   stands for an 8-bit register pair
+- a..a  stands for an address
+- d..d  stands for a direct value (immediate)
