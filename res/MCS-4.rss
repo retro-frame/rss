@@ -1,0 +1,378 @@
+RFFF/1.0?RSS/1.0
+
+;------------------------------------------------------------------------------
+;
+;  RETRO-FRAME INTEL MCS-4 RETRO SYSTEM SPECIFICATION
+;
+;  Copyright (c) 2026 Ingo Boehmer
+;
+;  Repository:  <http://source.retro-frame.net/rss>
+;  File:        /res/MCS-4.rss//
+;  Compliance:  Retro-Frame 1.0
+;  License:     MIT
+;
+;------------------------------------------------------------------------------
+
+
+; This file provides the Retro System Specification of the Intel MCS-4 Micro
+; Computer Set chip family (4001, 4002, 4003 and 4004). As line multiplexing is
+; used (i.e. the meaning of the current data on a bus depends on the state) and
+; I/O ports are connected to a ROM, RAM or I/O chip rather than using a central
+; bus, this specification uses the following virtual bus concept:
+;
+; - ROM/8
+;
+;   This bus is used for fetching data (i.e. instructions) from a ROM by read
+;   events from the CPU. A 12-bit address is used and each ROM shall recognize
+;   itself by the high 4 bits. The low 8 bits represent the local byte address.
+;
+; - ADDR
+;
+;   This bus is used by the CPU to transmit the address for subsequent reads or
+;   writes to the ROM and RAM components as write events. This bus uses 11 bits
+;   to represent the address but does not transfer data. Each RAM bank shall
+;   recognize itself by the high 3 bits (which are taken from the most recent
+;   DCL instruction and transmitted over the CM-RAM lines on the actual system)
+;   while the ROM components shall ignore those high bits as the ROM chip is
+;   determined by the middle 4 bits (according to the SRC instruction).
+;
+; - ROM_PORT/4
+;
+;   This bus is used for ROM port transfer. It does not use an address by
+;   itself as the address (i.e. ROM chip) previously sent by the ADDR bus shall
+;   be used.
+;
+; - RAM_PORT/4
+;
+;   This bus is used for RAM port transfer. It does not use an address by
+;   itself as the address (i.e. bank and chip) previously sent by the ADDR bus
+;   shall be used.
+;
+; - MEM/4
+;
+;   This bus is used for RAM memory character transfer. It does not use an
+;   address by itself as the address (i.e. bank, chip, register and character)
+;   previously sent by the ADDR bus shall be used.
+;
+; - STAT/4
+;
+;   This bus is used for RAM status character transfer. It uses a 2-bit address
+;   to represent the status character while bank, chip and register shall be
+;   taken from the most recent value sent by the ADDR bus.
+;
+; - IO/1
+;
+;   This bus is used by the individual ROM, RAM and I/O chips. A 2-bit address
+;   is used to represent the pin (i.e. the local port address) if a ROM or RAM
+;   chip is used. If one I/O chip or even a cascade of I/O chips is used, the
+;   address may consist of more bits.
+;
+; For further documentation of the MCS-4, including a descripton of its actual
+; bus concept, see /doc/MCS-4.txt//.
+
+
+ROM "Intel 4001" (ROM/8, ADDR, ROM_PORT/4, IO/1)
+
+    ; default path to ROM file:
+
+    ROM_FILE = "./MCS-4.ROM"
+
+    ; I/O pin configuration:
+    ; - mode value 0 represents an output line (0 is sent on read)
+    ; - mode value 1 represents an output line (1 is sent on read)
+    ; - any other mode value represents an input line
+    ; This component translates PORT/4 reads and writes to multiple IO/1
+    ; reads and writes.
+
+    IO_0_MODE = 0, IO_1_MODE = 0, IO_2_MODE = 0, IO_3_MODE = 0
+{
+    CONST BUF/8(256) = ROM_FILE[$INSTANCE * 256].
+    VAR PORT_SELECT/1.
+
+ROM READ iiiinnnnnnnn:
+
+    IF (UINT/4(i) == $INSTANCE)
+    {
+        ROM/8 = BUF/8(UINT/16(n)).
+    }
+
+ADDR WRITE xxxiiiinnnn:
+
+    IF (UINT/4(i) == $INSTANCE)
+    {
+        PORT_SELECT/1 = 1.
+    }
+    ELSE
+    {
+        PORT_SELECT/1 = 0.
+    }
+
+ROM_PORT READ:
+
+    IF (PORT_SELECT/1 == 1)
+    {
+        ROM_PORT/4 = 0.
+
+        IF ((IO_0_MODE == 1) || ((IO_0_MODE != 0) && IO/1(0)))
+        {
+            ROM_PORT/4 |= 0x8.
+        }
+
+        IF ((IO_1_MODE == 1) || ((IO_1_MODE != 0) && IO/1(1)))
+        {
+            ROM_PORT/4 |= 0x8.
+        }
+
+        IF ((IO_2_MODE == 1) || ((IO_2_MODE != 0) && IO/1(2)))
+        {
+            ROM_PORT/4 |= 0x8.
+        }
+
+        IF ((IO_3_MODE == 1) || ((IO_3_MODE != 0) && IO/1(3)))
+        {
+            ROM_PORT/4 |= 0x8.
+        }
+    }
+
+ROM_PORT WRITE:
+
+    IF (PORT_SELECT/1 == 1)
+    {
+        IF (IO_0_MODE > 1)
+        {
+            IO/1(0) = ROM_PORT/4.
+        }
+
+        IF ((IO_1_MODE == 1) || ((IO_1_MODE != 0) && IO/1(1)))
+        {
+            IO/1(1) = ROM_PORT/4 >> 1.
+        }
+
+        IF ((IO_2_MODE == 1) || ((IO_2_MODE != 0) && IO/1(2)))
+        {
+            IO/1(2) = ROM_PORT/4 >> 2.
+        }
+
+        IF ((IO_3_MODE == 1) || ((IO_3_MODE != 0) && IO/1(3)))
+        {
+            IO/1(3) = ROM_PORT/4 >> 3.
+        }
+    }
+}
+
+
+RAM "Intel 4002" (ADDR, RAM_PORT/4, MEM/4, STAT/4, IO/1)
+{
+}
+
+
+CPU "Intel 4004" (ROM/8, ADDR, ROM_PORT/4, RAM_PORT/4, MEM/4, STAT/4, TEST/1)
+{
+    ; registers:
+
+    VAR RAM_BANK/3.  ; RAM bank currently selected by DCL
+    VAR A/4.         ; accumulator
+    VAR REG/4(16).   ; 16 4-bit registers
+
+    READ REG/8(x)
+    {
+        REG/8 = REG/4(2 * x) << 4 | REG/4(2 * x + 1).  ; high nibble first
+    }
+
+    WRITE REG/8(x)
+    {
+        REG/4(2 * x) = REG/8 >> 4.  ; high nibble first
+        REG/4(2 * x + 1) = REG/8.
+    }
+
+    ; $FLAGS bit (carry):
+
+    ; +----+
+    ; | CY |
+    ; +----+
+
+    VAR ADDRESS_STACK/12(4).
+
+    VAR ADDRESS_STACK_PTR/2.
+
+    DEF ADDRESS_STACK_PUSH
+    {
+        ADDRESS_STACK/12(ADDRESS_STACK_PTR/2) = $.
+
+        ADDRESS_STACK_PTR/2 += 1.  ; may overflow
+    }
+
+    DEF ADDRESS_STACK_POP
+    {
+        ADDRESS_STACK_PTR/2 -= 1.  ; may underflow
+
+        $ = ADDRESS_STACK/12(ADDRESS_STACK_PTR/2).
+    }
+
+RESET:
+
+    $CLEAR.          ; clear all variables (RAM should clear itself as well)
+    $FETCH = ROM/8.  ; bind opcode fetch to bus ROM/8
+
+OPCODE 0000xxxx:
+
+    ; NOP (no operation):
+
+    IF (UINT/4(x) != 0)
+    {
+        $OPCODE_INVALID.
+    }
+
+OPCODE 0001nact llllllll:
+
+    ; JCN (jump conditional):
+
+    VAR T/1.
+
+    T/1 = 0.
+
+    IF (UINT/1(t) && (TEST/1(0) == 0))
+    {
+        T/1 |= 1.  ; test signal on bus TEST/1 is zero
+    }
+
+    IF (UINT/1(c) && ($FLAGS/1 == 1))
+    {
+        T/1 |= 1.  ; carry flag CY is set
+    }
+
+    IF (UINT/1(a) && (A/4 == 0))
+    {
+        T/1 |= 1.  ; accumulator A is zero
+    }
+
+    IF ((UINT/1(n) ^ T/1) != 0)
+    {
+        ; If JCN is located at offsets 0xFE and 0xFF of a ROM page and the
+        ; condition is true, program control is transferred to the next ROM
+        ; page but remains on the current ROM page otherwise. As the program
+        ; counter $ has been advanced by two bytes already, the current ROM
+        ; page must be switched back if JCN is located at offset 0xFF of the
+        ; previous ROM page and offset 0x00 of the current ROM page (in this
+        ; case, the low byte of the program counter $ is 0x01).
+
+        IF (($ & 0x0FF) != 0x001)
+        {
+            $ = ($ & 0xF00) | UINT/8(l).  ; keep current ROM page
+        }
+        ELSE
+        {
+            $ = ($ - 0x101) | UINT/8(l).  ; switch back to previous ROM page
+        }
+    }
+
+OPCODE 0010rrr0 dddddddd:
+
+    ; FIM (fetch immediate):
+
+    REG/8(UINT/3(r)) = UINT/8(d)
+
+OPCODE 0010rrr1 dddddddd:
+
+    ; SRC (send register control):
+
+    ADDR(RAM_BANK << 8 | REG/8(UINT/3(r))).
+
+OPCODE 0011rrr0:
+
+    ; FIN (fetch indirect):
+
+    REG/8(UINT/3(r)) = ROM/8(($ & 0xF00) | REG/8(0)).
+
+OPCODE 0011rrr1:
+
+    ; JIN (jump indirect):
+
+    $ = ($ & 0xF00) | REG/8(UINT/3(r)).
+
+OPCODE 0100hhhh llllllll:
+
+    ; JUN (jump unconditional):
+
+    $ = UINT/4(h) << 8 | UINT/8(l).
+
+OPCODE 0101hhhh llllllll:
+
+    ; JMS (jump subroutine):
+
+    ADDRESS_STACK_PUSH
+
+    $ = UINT/4(h) << 8 | UINT/8(l).
+
+OPCODE 0110rrrr:
+
+    ; INC (increment):
+
+    REG/4(UINT/4(r)) += 1.  ; may overflow
+
+OPCODE 0111rrrr llllllll:
+
+    ; ISZ (increment and skip):
+
+    REG/4(UINT/4(r)) += 1.  ; may overflow
+
+    IF (REG/4(UINT/4(r)) == 0)
+    {
+        IF (($ & 0x0FF) != 0x001)
+        {
+            $ = ($ & 0xF00) | UINT/8(l).  ; see JCN
+        }
+        ELSE
+        {
+            $ = ($ - 0x101) | UINT/8(l).  ; see JCN
+        }
+    }
+
+OPCODE 1000rrrr:
+
+    ; ADD (add with carry):
+
+    A/4 += REG/4(UINT/4(r)) + $FLAGS/1.
+
+    $FLAGS(CF).
+
+OPCODE 1001rrrr:
+
+    ; SUB (sub with borrow):
+
+    A/4 += ~REG/4(UINT/4(r)) + ~$FLAGS/1.
+
+    $FLAGS(CF).
+
+OPCODE 1010rrrr:
+
+    ; LD (load):
+
+    A/4 = REG/4(UINT/4(r)).
+
+OPCODE 1011rrrr:
+
+    ; XCH (exchange):
+
+    A/4 <> REG/4(UINT/4(r)).
+
+OPCODE 1100dddd:
+
+    ; BBL (branch back and load):
+
+    ADDRESS_STACK_POP.
+
+    A/4 = UINT/4(d).
+
+OPCODE 1101dddd:
+
+    ; LDM (load immediate):
+
+    A/4 = UINT/4(d).
+
+OPCODE 11100000:
+
+    ; WRM (write main memory):
+
+    A/4 = UINT/4(d).
+}

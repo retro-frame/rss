@@ -1,0 +1,603 @@
+
+===============================================================================
+ ____      _                   _____                         
+|  _ \ ___| |_ _ __ ___       |  ___| __ __ _ _ __ ___   ___ 
+| |_) / _ \ __| '__/ _ \ _____| |_ | '__/ _` | '_ ` _ \ / _ \
+|  _ <  __/ |_| | | (_) |_____|  _|| | | (_| | | | | | |  __/
+|_| \_\___|\__|_|  \___/      |_|  |_|  \__,_|_| |_| |_|\___|
+
+
+RSS - Retro System Specifications
+
+Intel MCS-4 Micro Computer Set Documentation
+
+Repository:  <http://source.retro-frame.net/rss>
+File:        /doc/MCS-4.txt//
+Version:     01.00!00
+Compliance:  Retro-Frame 1.0
+License:     MIT
+
+Copyright (c) 2026 Ingo Boehmer <ingo@retro-leisure.net>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+===============================================================================
+
+
+Change history
+-------------------------------------------------------------------------------
+
+2026-06-20 : 01.00!00 : Ingo
+
+  Draft.
+
+
+Contents
+-------------------------------------------------------------------------------
+
+1. INTRODUCTION
+   1.1  Background
+   1.2  Scope
+   1.3  References
+
+2. OVERVIEW
+
+3. DEFINITIONS
+   3.1  Nibble / character
+   3.2  Byte
+   3.3  Word
+   3.4  Port
+   3.5  Address
+
+4. ARCHITECTURE
+   4.1 CPU registers
+   4.2 Memory layout
+   4.3 Physical bus concept
+   4.4 Logical bus concept
+
+5. ADDRESS MODES
+   5.1  ROM byte access (instruction fetch)
+   5.2  RAM memory character access
+   5.3  RAM status character access
+   5.4  Port I/O
+
+6. INSTRUCTION SET
+
+
+
+1. INTRODUCTION
+===============================================================================
+
+
+1.1 Background
+-------------------------------------------------------------------------------
+
+[RETRO-FRAME] is a Retro-Endeavor that provides [COMMON DOCUMENTATION] (i.e.
+definitions, guidelines, templates and generic specifications) as well as
+topic-related specifications (covered by individual repositories like this
+one related to data format specifications) which are intended for use in
+retrospective programming and may be used as a whole or partially for other
+purposes.
+
+The Retro System Specifications comprise specifications in RSS format (see
+[FORMAT SPECIFICATIONS], /spec/rfdf-rss.txt//) as well as documentation of
+systems and their components (e.g. CPU, RAM or a keyboard). The RSS format has
+been chosen to ensure an unambiguous and full specification. In addition, the
+RSS files may be directly used by emulators.
+
+
+1.2 Scope
+-------------------------------------------------------------------------------
+
+This document provides additional documentation of the Intel MCS-4 Micro
+Computer Set according to [MCS-4]. For the actual specification in RSS format,
+see /res/MCS-4.rss//.
+
+Note that only the 4001, 4002, 4003 and 4004 are considered part of the MCS-4.
+Later support chips like 4008 or 4009 are not in the scope of this document.
+
+
+1.3 References
+-------------------------------------------------------------------------------
+
+[COMMON DOCUMENTATION]
+Retro-Frame Common Documentation, see <http://source.retro-frame.net/common>.
+
+[FORMAT SPECIFICATIONS]
+Retro-Frame Data Format Specifications, see
+<http://source.retro-frame.net/format>.
+
+[MCS-4]
+Intel(R) MCS-4 MICRO COMPUTER SET, Intel Corporation, 1971.
+
+[RETRO-FRAME]
+Retro-Frame homepage, see <http://source.retro-frame.net/>.
+
+
+
+2. OVERVIEW
+===============================================================================
+
+The Intel MCS-4 Micro Computer Set is a set of 4-bit microchips from the early
+70's which was intended to be used by calculators. However, the 4004 chip is a
+universal CPU and may thus be used for other purposes.
+
+The MCS-4 consists of the following components ("Intel 4000 family"):
+
+- The 4001 ROM chip (256 x 8 bit mask programmable rom and 4 bit I/O port).
+
+- The 4002 RAM chip (320 bit RAM and 4 bit output port).
+
+- The 4003 I/O chip (8 bit serial-in/parallel-out, serial-out shift register).
+
+- The 4004 CPU chip (4 bit central processor unit with 45 instructions).
+
+Compared with the 8-bit 8008 CPU, whose architecture and instruction set is
+quite easy to understand, the MCS-4 uses some techniques which might be
+confusing at the first sight. For example:
+
+- While in general a 4-bit nibble is the smallest addressable unit, the
+  instructions fetched from the ROM are accessed by 8-bit quantities (i.e.
+  the program counter is a pointer to bytes rather than a nibble address).
+
+- Although the bytes in the ROM are addressed by a 12-bit value, the address
+  space should not be considered flat (0x000 through 0xFFF) but a set of 1 up
+  to 16 ROM chips with 256 bytes each instead (e.g. the JCN instruction only
+  branches within the current ROM chip). Thus, the highest nibble of a ROM byte
+  address should be considered a ROM chip selector.
+
+- The up to 8 RAM chips are rather complexed organized by banks, chips and
+  registers while registers store two different classes of adressable units
+  (4-bit nibbles called "characters"): main memory characters and status
+  characters.
+
+- There is no central port bus where other components may be connected to.
+  Instead, the ROM, RAM and I/O chips provide pins where external components
+  may be connected to. Data transfer between the CPU to those I/O ports is
+  performed indirectly over the ROM, RAM and I/O chips.
+
+- The actual 4-bit data bus, accessed by four pins of each chip, is multiplexed
+  and is used for parts of the address as well as for the actual data including
+  port data. However, the distinction between ROM and RAM as well as addressing
+  a particular the RAM bank (which may be considered part of the RAM address)
+  is implemented by five additional control signal pins of the 4004 (CM-ROM and
+  CM-RAM-x).
+
+- Unlike ROM data access (i.e. instruction fetch), the address of RAM data and
+  port access is not sent by the read or write instructions but by a separate
+  SRC instruction. As a consequence, each ROM and RAM chip must store this
+  address. Even more confusing: the address sent an SRC instruction is received
+  by two chips: the ROM and the current RAM bank, which is bank 0 after a reset
+  or the bank selected by a DCL instruction (bank switching).
+
+- While later Intel CPUs use little endian order of bytes, the "nibble order"
+  of the 4004 is big endian.
+
+Note that the 4003 I/O chip is transparent to the 4004 CPU (i.e. cannot be
+accessed directly but must be accessed indirectly over the 4001 ROM or 4002
+RAM).
+
+
+
+3. DEFINITIONS
+===============================================================================
+
+
+3.1 Nibble / character
+-------------------------------------------------------------------------------
+
+A 'NIBBLE' or 'CHARACTER' is unit of 4 bits which represents a value in the
+range 0..15 (0x0..0xF).
+
+
+3.2 Byte
+-------------------------------------------------------------------------------
+
+A 'BYTE' is a unit of two NIBBLES which represents a value in the range 0..255
+(0x00..0xFF). The NIBBLE containing the most significand part is called high
+nibble while the NIBBLE containing the least significand part is called low
+nibble.
+
+
+3.3 Word
+-------------------------------------------------------------------------------
+
+A 'WORD' is an atomic unit of data which is addressable (i.e. can be accessed).
+
+Note that MCS-4 uses NIBBLES as WORDS in general, except BYTES which are WORDS
+on instruction fetch (i.e. ROM data).
+
+
+3.4 Port
+-------------------------------------------------------------------------------
+
+A 'PORT' is a single line which may be used either for input or for output of
+signals from or to external components. Although a direct connection between an
+MCS-4 chip and an external component, a single PORT or a group of PORTS may be
+considered bus.
+
+Note that PORT data between MCS-4 chips are actually transferred on the 4-bit
+data bus (i.e. 4 PORTS are read or written simultaneously in groups).
+
+
+3.5 Address
+-------------------------------------------------------------------------------
+
+An 'ADDRESS' is an unsigned integer value in the range 0..n which locates an
+atomic unit of data. Such an atomic unit may be a WORD (i.e. a NIBBLE or a
+BYTE) or a group of PORTS.
+
+
+
+4. ARCHITECTURE
+===============================================================================
+
+
+4.1 CPU registers
+-------------------------------------------------------------------------------
+
+The 4004 CPU chip comprises the following explicit registers:
+
+- A 12-bit program counter (PC).
+
+- A 4-bit accumulator (A).
+
+- A 1-bit carry flag (CY).
+
+- 16 4-bit registers (R0..R15) which may be addressed as 8 8-bit register pairs
+  (P0..P7) where the high nibble is in the register with the lower number (e.g.
+  P0 = R0 << 4 | R1).
+
+In addition, the following registers are maintained:
+
+- A program counter stack of 4 12-bit values. Actually, the program counter is
+  not a separate register but the current value on that stack.
+
+- A 2-bit stack pointer to the program counter on the program counter stack.
+
+- A 3-bit RAM control value which represents the currently selected RAM bank
+  (see chapter 4.2).
+
+
+4.2 Memory layout
+-------------------------------------------------------------------------------
+
+MCS-4 does not use a flat memory layout. Instead, ROM and RAM are treatened
+differently even both have some specifics regarding adressing.
+
+
+The ROM is implemented by at least one up to 16 4001 ROM chips, each providing
+256 bytes of non-changeable data. In general, each byte of the entire ROM may
+be addressed by a 12-bit value:
+
+  +-------------------------+
+  |               byte 0x00 |  <== address 0x000
+  |  ROM chip  1  byte 0x01 |  <== address 0x001
+  |               ...       |
+  |               byte 0xFF |  <== address 0x00F
+  +-------------------------+
+  |               byte 0x00 |  <== address 0x100
+  |  ROM chip  2  byte 0x01 |  <== address 0x101
+  |               ...       |
+  |               byte 0xFF |  <== address 0x1FF
+  +-------------------------+
+
+  ...
+
+  +-------------------------+
+  |               byte 0x00 |  <== address 0xF00
+  |  ROM chip 16  byte 0x01 |  <== address 0xF01
+  |               ...       |
+  |               byte 0xFF |  <== address 0xFFF
+  +-------------------------+
+
+However, sometimes the ROM chip is considered its own segment and an 8-bit
+short address determines the low byte of the address. This matters especially
+for instructions wich are located at the end of a ROM (in such cases, the 8-bit
+short address may refer to the next ROM).
+
+Example:
+
+The JCN (jump conditional) instructure branches to an 8-bit short address if
+the condition is true. If the first byte of this instruction is located at
+byte 0x00..0xFD within a ROM chip, the 8-bit short address refers to the same
+ROM chip. Otherwise, it refers to the next ROM chip.
+
+
+The RAM is implemented by up to 8 RAM banks (it would be valid to have no RAM
+bank at all) . Only one RAM bank is active which is RAM bank 0 after a reset
+but may be switched by a DCL instruction.
+
+Each bank consists of 4 4002 RAM chips which in turn provide 4 registers. Each
+register consist of 16 main memory characters and 4 status characters:
+
+  +--------------------------+--------------------------+---------------------+
+  |              register 0  |  main memory characters  |  status characters  |
+  |  RAM chip 0  register 1  |  main memory characters  |  status characters  |
+  |              register 2  |  main memory characters  |  status characters  |
+  |              register 3  |  main memory characters  |  status characters  |
+  +--------------------------+--------------------------+---------------------+
+  |              register 0  |  main memory characters  |  status characters  |
+  |  RAM chip 1  register 1  |  main memory characters  |  status characters  |
+  |              register 2  |  main memory characters  |  status characters  |
+  |              register 3  |  main memory characters  |  status characters  |
+  +--------------------------+--------------------------+---------------------+
+  |              register 0  |  main memory characters  |  status characters  |
+  |  RAM chip 2  register 1  |  main memory characters  |  status characters  |
+  |              register 2  |  main memory characters  |  status characters  |
+  |              register 3  |  main memory characters  |  status characters  |
+  +--------------------------+--------------------------+---------------------+
+  |              register 0  |  main memory characters  |  status characters  |
+  |  RAM chip 3  register 1  |  main memory characters  |  status characters  |
+  |              register 2  |  main memory characters  |  status characters  |
+  |              register 3  |  main memory characters  |  status characters  |
+  +--------------------------+--------------------------+---------------------+
+
+Within one RAM bank, a single main memory character (i.e. nibble) can be
+addressed by an 8-bit address of the following format:
+
+  +-------------------+-------------------+--------------------------------+
+  |  2 bits RAM chip  |  2 bits register  |  4 bits main memory character  |
+  +-------------------+-------------------+--------------------------------+
+
+Status characters, however, are addressed by the same address where the low 4
+bits are ignored. Instead, the status character address 0..3 is part of the
+instruction.
+
+
+
+4.3 Physical bus concept
+-------------------------------------------------------------------------------
+
+The physical bus concept of MCS-4 may be helpful to understand the logical bus
+concept which is based on the pin configuration of the individual chips. Each
+MCS-4 chip as 16 pins (16-pin DIP). The 4003 I/O chip is included here as it
+may be part of the physical connections between the MCS-4 chip.
+
+
+The 4001 ROM chip uses the following pin configuration (only the pins which are
+relevant for the bus concept are labelled):
+
+       +------------+
+       |            |
+  D-0 -+ 1       16 +- I/O-0
+       |            |
+  D-1 -+ 2       15 +- I/O-1
+       |            |
+  D-2 -+ 3       14 +- I/O-2
+       |            |
+  D-3 -+ 4       13 +- I/O-3
+       |            |
+      -+ 5       12 +-
+       |            |
+      -+ 6       11 +- CM
+       |            |
+      -+ 7       10 +-
+       |            |
+      -+ 8        9 +-
+       |            |
+       +------------+
+
+
+The 4002 RAM chip uses the following pin configuration (only the pins which are
+relevant for the bus concept are labelled):
+
+       +------------+
+       |            |
+  D-0 -+ 1       16 +- O-0
+       |            |
+  D-1 -+ 2       15 +- O-1
+       |            |
+  D-2 -+ 3       14 +- O-2
+       |            |
+  D-3 -+ 4       13 +- O-3
+       |            |
+      -+ 5       12 +-
+       |            |
+      -+ 6       11 +- CM
+       |            |
+      -+ 7       10 +-
+       |            |
+      -+ 8        9 +-
+       |            |
+       +------------+
+
+
+The 4003 I/O chip uses the following pin configuration (only the pins which are
+relevant for the bus concept are labelled):
+
+       +------------+
+       |            |
+   CP -+ 1       16 +- E
+       |            |
+   IN -+ 2       15 +- OUT
+       |            |
+  O-0 -+ 3       14 +-
+       |            |
+  O-1 -+ 4       13 +- O-9
+       |            |
+      -+ 5       12 +- O-8
+       |            |
+  O-2 -+ 6       11 +- O-7
+       |            |
+  O-3 -+ 7       10 +- O-6
+       |            |
+  O-4 -+ 8        9 +- O-5
+       |            |
+       +------------+
+
+While the O-x pins represent parallel output ports which are controlled by the
+E pin (enable input), the IN pin (data in) is used for serial input and the OUT
+pin (data out) for serial output controlled by the CP pin (clock pulse input).
+
+
+The 4004 CPU chip uses the following pin configuration (only the pins which are
+relevant for the bus concept are labelled):
+
+       +------------+
+       |            |
+  D-0 -+ 1       16 +- CM-RAM-0
+       |            |
+  D-1 -+ 2       15 +- CM-RAM-1
+       |            |
+  D-2 -+ 3       14 +- CM-RAM-2
+       |            |
+  D-3 -+ 4       13 +- CM-RAM-3
+       |            |
+      -+ 5       12 +-
+       |            |
+      -+ 6       11 +- CM-ROM
+       |            |
+      -+ 7       10 +- TEST
+       |            |
+      -+ 8        9 +-
+       |            |
+       +------------+
+
+
+In terms of the physical bus concept, three cases are considered seperately:
+
+- Two central buses for communication between the 4001 ROM, 4002 RAM and 4004
+  CPU chips:
+
+  The first central bus is formed by the CM-x pins. The CPU has five such pins
+  and uses them to select either the entire ROM or a particular RAM bank (or,
+  in special cases, both). While the physical wireing connecting the five CM-x
+  pins of the CPU with the single CM pins of the ROM respectively RAM is not a
+  parallel bus, it may logically be considered a 5-bit bus which is controlled
+  by the CPU and part of the addressing (see chapter 5).
+
+  The other central bus is the actual data bus which is formed by the D-x pins
+  of the ROM, RAM and CPU. While the bus is 4-bit, it may also transfer 8-bit
+  words or 12-bit addresses by time multiplexing.
+
+- Individual port buses for communication between the 4001 ROM, 4002 RAM, 4003
+  I/O chips and external components:
+
+  The I/O-x, O-x, IN, OUT, CP and E pins may physically connect the ROM, RAM
+  and I/O chips between each other or with external components. While the I/O-x
+  pins of the ROM may be either input or output ports by fixed configuration,
+  the IN, CP and E pins are input ports only while the O-x and OUT pins are
+  output ports only.
+
+  Port connections may be considered a bus. Each connection may be considered
+  its own 1-bit bus or multiple connections between two components may be
+  considered an n-bit bus. However, there is no shared bus between more than
+  two components according to the MCS-4 system interconnection concept.
+
+  Note that those connections are transparent to the CPU which is only capable
+  to read from or write to the I/O-x pins (i.e. ports) of a ROM or to write to
+  the O-x pins (i.e. ports) of a RAM over the central buses.
+
+- The TEST pin of the 4004 CPU may be considered an individual 1-bit bus (i.e.
+  port) which is shared with external components. The CPU may read from but not
+  write to that port.
+
+
+4.4 Logical bus concept
+-------------------------------------------------------------------------------
+
+Although ROM, RAM and CPU share the same data bus using the control (CM-x) bus
+as part of the adressing, it seems easier to define multiple logical buses for
+each specific case. In addition, the physical multiplexing is resolved.
+
+
+Between the ROM, the RAM and the CPU, a single 8-bit address bus may be used
+for the CPU to send the address for subsequent read of write requests to both,
+the ROM and the RAM (SRC instruction).
+
+Because only one RAM bank is supposed to receive the 8-bit value, the control
+(CM-x) bus must be used in addition. However, this can be avoided by specifying
+a logical 11-bit bus instead, which uses the 3 high bits to select the RAM bank
+while the ROM ignores those bits.
+
+The latter concept is preferred as it avoids an additional control bus and can
+easily be specified by RSS as one ADDR bus using 11 bit addresses and no data.
+
+
+Between the ROM and the CPU, the following buses are used:
+
+- A 12-bit additional address bus for the CPU to locate the byte to be fetched.
+
+- Either a single 4-bit data bus for the ROM to send the fetched byte in two
+  nibbles (high nibble OPR first, followed by the low nibble OPA) as well as
+  for port reads and writes. This would be close to the physical buses. Note
+  that port read and write instructions do not use an address so an additional
+  signal would be required for port transfers.
+
+- Alternatively, two separate logical data buses are used: one 8-bit data bus
+  for instruction fetch and one 4-bit bus for port transfers.
+
+The latter concept is preferred as it can easily be specified by RSS which
+provides combined address / data buses: one ROM/8 bus using 12 bit addresses
+and one ROM_PORT/4 bus which is capable to send a port read or write event
+without an address.
+
+
+Between the RAM and the CPU, one 4-bit data bus may be used to transfer main
+memory or status characters as well as port data. Note that main memory
+character and port data instructions do not use an address (which was sent in
+advance by the ADDR bus) so additional signals would be required. Status
+character instructions require an additional 2-bit address (see chapter 5).
+
+Alternatively, the following separate buses may be used:
+
+- A 4-bit data bus for main memory character transfer.
+
+- A 4-bit data bus plus a 2-bit address bus for status character transfer.
+
+- A 4-bit data bus for port transfers.
+
+The latter concept is preferred as it can easily be specified by RSS by one
+MEM/4 bus without an address, one STAT/4 bus with a 2-bit address and one
+RAM_PORT/4 bus again without an address.
+
+
+
+5. ADDRESS MODES
+===============================================================================
+
+
+5.1 ROM byte access (instruction fetch)
+-------------------------------------------------------------------------------
+
+xyz
+
+
+5.2 RAM memory character access
+-------------------------------------------------------------------------------
+
+xyz
+
+
+5.3 RAM status character access
+-------------------------------------------------------------------------------
+
+xyz
+
+
+5.4 Port I/O
+-------------------------------------------------------------------------------
+
+xyz
+
+
+
+6. INSTRUCTION SET
+===============================================================================
