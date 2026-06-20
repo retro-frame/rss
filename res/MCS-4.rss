@@ -258,6 +258,8 @@ OPCODE 0000xxxx:
         $OPCODE_INVALID.
     }
 
+    $CYCLES(8).
+
 OPCODE 0001nact llllllll:
 
     ; JCN (jump conditional):
@@ -283,23 +285,10 @@ OPCODE 0001nact llllllll:
 
     IF ((UINT/1(n) ^ T/1) != 0)
     {
-        ; If JCN is located at offsets 0xFE and 0xFF of a ROM page and the
-        ; condition is true, program control is transferred to the next ROM
-        ; page but remains on the current ROM page otherwise. As the program
-        ; counter $ has been advanced by two bytes already, the current ROM
-        ; page must be switched back if JCN is located at offset 0xFF of the
-        ; previous ROM page and offset 0x00 of the current ROM page (in this
-        ; case, the low byte of the program counter $ is 0x01).
-
-        IF (($ & 0x0FF) != 0x001)
-        {
-            $ = ($ & 0xF00) | UINT/8(l).  ; keep current ROM page
-        }
-        ELSE
-        {
-            $ = ($ - 0x101) | UINT/8(l).  ; switch back to previous ROM page
-        }
+        $ = ($ & 0xF00) | UINT/8(l).  ; keep current ROM page
     }
+
+    $CYCLES(16).
 
 OPCODE 0010rrr0 dddddddd:
 
@@ -307,11 +296,15 @@ OPCODE 0010rrr0 dddddddd:
 
     REG/8(UINT/3(r)) = UINT/8(d)
 
+    $CYCLES(16).
+
 OPCODE 0010rrr1 dddddddd:
 
     ; SRC (send register control):
 
     ADDR(RAM_BANK << 8 | REG/8(UINT/3(r))).
+
+    $CYCLES(16).
 
 OPCODE 0011rrr0:
 
@@ -319,17 +312,23 @@ OPCODE 0011rrr0:
 
     REG/8(UINT/3(r)) = ROM/8(($ & 0xF00) | REG/8(0)).
 
+    $CYCLES(16).
+
 OPCODE 0011rrr1:
 
     ; JIN (jump indirect):
 
     $ = ($ & 0xF00) | REG/8(UINT/3(r)).
 
+    $CYCLES(8).
+
 OPCODE 0100hhhh llllllll:
 
     ; JUN (jump unconditional):
 
     $ = UINT/4(h) << 8 | UINT/8(l).
+
+    $CYCLES(16).
 
 OPCODE 0101hhhh llllllll:
 
@@ -339,11 +338,15 @@ OPCODE 0101hhhh llllllll:
 
     $ = UINT/4(h) << 8 | UINT/8(l).
 
+    $CYCLES(16).
+
 OPCODE 0110rrrr:
 
     ; INC (increment):
 
     REG/4(UINT/4(r)) += 1.  ; may overflow
+
+    $CYCLES(8).
 
 OPCODE 0111rrrr llllllll:
 
@@ -353,15 +356,10 @@ OPCODE 0111rrrr llllllll:
 
     IF (REG/4(UINT/4(r)) == 0)
     {
-        IF (($ & 0x0FF) != 0x001)
-        {
-            $ = ($ & 0xF00) | UINT/8(l).  ; see JCN
-        }
-        ELSE
-        {
-            $ = ($ - 0x101) | UINT/8(l).  ; see JCN
-        }
+        $ = ($ & 0xF00) | UINT/8(l).  ; keep current ROM page
     }
+
+    $CYCLES(16).
 
 OPCODE 1000rrrr:
 
@@ -370,6 +368,7 @@ OPCODE 1000rrrr:
     A/4 += REG/4(UINT/4(r)) + $FLAGS/1.
 
     $FLAGS/1(CF).
+    $CYCLES(8).
 
 OPCODE 1001rrrr:
 
@@ -378,6 +377,7 @@ OPCODE 1001rrrr:
     A/4 += ~REG/4(UINT/4(r)) + ~$FLAGS/1.
 
     $FLAGS/1(CF).
+    $CYCLES(8).
 
 OPCODE 1010rrrr:
 
@@ -385,11 +385,15 @@ OPCODE 1010rrrr:
 
     A/4 = REG/4(UINT/4(r)).
 
+    $CYCLES(8).
+
 OPCODE 1011rrrr:
 
     ; XCH (exchange):
 
     A/4 <> REG/4(UINT/4(r)).
+
+    $CYCLES(8).
 
 OPCODE 1100dddd:
 
@@ -399,11 +403,15 @@ OPCODE 1100dddd:
 
     A/4 = UINT/4(d).
 
+    $CYCLES(8).
+
 OPCODE 1101dddd:
 
     ; LDM (load immediate):
 
     A/4 = UINT/4(d).
+
+    $CYCLES(8).
 
 OPCODE 11100000:
 
@@ -411,11 +419,15 @@ OPCODE 11100000:
 
     MEM/4(RAM_BANK/3 << 8) = A/4.
 
+    $CYCLES(8).
+
 OPCODE 11100001:
 
     ; WMP (write RAM port):
 
     RAM_PORT/4(RAM_BANK/3 << 8) = A/4.
+
+    $CYCLES(8).
 
 OPCODE 11100010:
 
@@ -423,11 +435,15 @@ OPCODE 11100010:
 
     ROM_PORT/4 = A/4.
 
+    $CYCLES(8).
+
 OPCODE 111001ss:
 
     ; WRx (write status char):
 
     STAT/4((RAM_BANK/3 << 8) | UINT/2(s)) = A/4.
+
+    $CYCLES(8).
 
 OPCODE 11101000:
 
@@ -436,6 +452,7 @@ OPCODE 11101000:
     A/4 += ~MEM/4(RAM_BANK/3 << 8) + ~$FLAGS/1.
 
     $FLAGS/1(CF).
+    $CYCLES(8).
 
 OPCODE 11101001:
 
@@ -443,11 +460,15 @@ OPCODE 11101001:
 
     A/4 = MEM/4(RAM_BANK/3 << 8).
 
+    $CYCLES(8).
+
 OPCODE 11101010:
 
     ; RDR (read ROM port):
 
     A/4 = ROM_PORT/4.
+
+    $CYCLES(8).
 
 OPCODE 11101011:
 
@@ -456,12 +477,15 @@ OPCODE 11101011:
     A/4 += MEM/4(RAM_BANK/3 << 8) + $FLAGS/1.
 
     $FLAGS/1(CF).
+    $CYCLES(8).
 
 OPCODE 111011ss:
 
     ; RDx (read status char):
 
     A/4 = STAT/4((RAM_BANK/3 << 8) | UINT/2(s)).
+
+    $CYCLES(8).
 
 OPCODE 11110000:
 
@@ -470,12 +494,14 @@ OPCODE 11110000:
     A/4 = 0.
 
     $FLAGS/1(0).
+    $CYCLES(8).
 
 OPCODE 11110001:
 
     ; CLC (clear carry):
 
     $FLAGS/1(0).
+    $CYCLES(8).
 
 OPCODE 11110010:
 
@@ -484,18 +510,22 @@ OPCODE 11110010:
     A/4 += 1.
 
     $FLAGS/1(CF).
+    $CYCLES(8).
 
 OPCODE 11110011:
 
     ; CMC (complement carry):
 
     $FLAGS/1(~CF).
+    $CYCLES(8).
 
 OPCODE 11110100:
 
     ; CMA (complement):
 
     A/4 = ~A/4.
+
+    $CYCLES(8).
 
 OPCODE 11110101:
 
@@ -507,6 +537,8 @@ OPCODE 11110101:
     A/4 ^= $FLAGS/1.
     $FLAGS/1 ^= A/4.
 
+    $CYCLES(8).
+
 OPCODE 11110110:
 
     ; RAR (rotate right):
@@ -517,6 +549,8 @@ OPCODE 11110110:
 
     A/4 >>>= 1.  ; rotate without carry
 
+    $CYCLES(8).
+
 OPCODE 11110111:
 
     ; TCC (transfer carry and clear):
@@ -524,6 +558,7 @@ OPCODE 11110111:
     A/4 = $FLAGS/1.
 
     $FLAGS/1(0).
+    $CYCLES(8).
 
 OPCODE 11111000:
 
@@ -532,6 +567,7 @@ OPCODE 11111000:
     A/4 += 0xF.
 
     $FLAGS/1(CF).
+    $CYCLES(8).
 
 OPCODE 11111001:
 
@@ -547,12 +583,14 @@ OPCODE 11111001:
     }
 
     $FLAGS/1(0).
+    $CYCLES(8).
 
 OPCODE 11111010:
 
     ; STC (set carry):
 
     $FLAGS/1(1).
+    $CYCLES(8).
 
 OPCODE 11111011:
 
@@ -564,6 +602,8 @@ OPCODE 11111011:
 
         $FLAGS/1(CF).
     }
+
+    $CYCLES(8).
 
 OPCODE 11111100:
 
@@ -582,9 +622,18 @@ OPCODE 11111100:
         A/4 = 0xF.
     }
 
+    $CYCLES(8).
+
 OPCODE 11111101:
 
     ; DCL (designate command line):
 
     RAM_BANK/3 = A/4.
+
+    $CYCLES(8).
+
+OPCODE 1111111x:
+
+    $OPCODE_INVALID.
+    $CYCLES(8).
 }

@@ -71,8 +71,8 @@ Contents
    4.3 Physical bus concept
    4.4 Logical bus concept
 
-5. ADDRESS MODES
-   5.1  ROM byte access (instruction fetch)
+5. ADDRESSING MODES
+   5.1  ROM byte access
    5.2  RAM memory character access
    5.3  RAM status character access
    5.4  Port I/O
@@ -124,7 +124,7 @@ Retro-Frame Data Format Specifications, see
 <http://source.retro-frame.net/format>.
 
 [MCS-4]
-Intel(R) MCS-4 MICRO COMPUTER SET, Intel Corporation, 1971.
+MCS-4(TM) MICRO COMPUTER SET - USERS MANUAL, Intel Corporation, REV 4, 1973.
 
 [RETRO-FRAME]
 Retro-Frame homepage, see <http://source.retro-frame.net/>.
@@ -202,7 +202,7 @@ RAM).
 3.1 Nibble / character
 -------------------------------------------------------------------------------
 
-A 'NIBBLE' or 'CHARACTER' is unit of 4 bits which represents a value in the
+A 'NIBBLE' or 'CHARACTER' is a unit of 4 bits which represents a value in the
 range 0..15 (0x0..0xF).
 
 
@@ -571,32 +571,132 @@ RAM_PORT/4 bus again without an address.
 
 
 
-5. ADDRESS MODES
+5. ADDRESSING MODES
 ===============================================================================
 
 
-5.1 ROM byte access (instruction fetch)
+5.1 ROM byte access
 -------------------------------------------------------------------------------
 
-xyz
+In general, each ROM byte can be addressed directly by a 12-bit unsigned value.
+
+  +----+----+----+----+----+----+----+----+----+----+----+----+
+  |                   full address (12 bit)                   |
+  +----+----+----+----+----+----+----+----+----+----+----+----+
+
+However, only the program counter (PC) has the capability of a 12-bit register
+and only unconditional or subroutine jumps (JUN or JMS) actually provide a full
+12-bit address.
+
+In any other case, an 8-bit short address is used. This address referes to the
+current ROM chip (i.e. ROM segment) which is determined by the high 4 bits of
+the program counter (PC) after instruction fetch.
+
+  +----+----+----+----+----+----+----+----+----+----+----+----+
+  |  PC high nibble   |         short address (8 bit)         |
+  +----+----+----+----+----+----+----+----+----+----+----+----+
+
+Note that if the instruction is located at the end of a ROM segment (i.e. the
+next instruction would be fetched from the next ROM segment), the short address
+refers to that next ROM segment. Although this behavior is clearly specified,
+it should be avoided whenever possible.
 
 
 5.2 RAM memory character access
 -------------------------------------------------------------------------------
 
-xyz
+Each 4-bit RAM memory character may be addressed directly by a 11-bit unsigned
+value which consists of a 3-bit bank number and an 8-bit local address within
+that bank.
+
+  +----+----+----+----+----+----+----+----+----+----+----+
+  | bank address |         local address (8 bit)         |
+  +----+----+----+----+----+----+----+----+----+----+----+
+
+If the current RAM bank remains unchanged, the local address is sufficient.
+
+  +----+----+----+----+----+----+----+----+
+  |         local address (8 bit)         |
+  +----+----+----+----+----+----+----+----+
+
+If the RAM memory characters are related to the RAM status characters (see next
+chapter), the 3 bit bank number and the high 4 bits of the local address may be
+considered a register address while the low 4 bits of the local address are the
+offset of the character within that register.
+
+  +----+----+----+----+----+----+----+----+----+----+----+
+  |     register address (7 bit)     |  offset (4 bit)   |
+  +----+----+----+----+----+----+----+----+----+----+----+
+
+Note that bank number switching requires a DCL instruction and that any RAM
+memory address needs to be sent by an SRC instruction before the actual data
+access instruction follows.
 
 
 5.3 RAM status character access
 -------------------------------------------------------------------------------
 
-xyz
+Each 4-bit RAM status character may be addressed directly by a 9-bit unsigned
+value which consists of a 3-bit bank number and a 6-bit local address within
+that bank.
+
+  +----+----+----+----+----+----+----+----+----+
+  | bank address |    local address (6 bit)    |
+  +----+----+----+----+----+----+----+----+----+
+
+If the current RAM bank remains unchanged, the local address is sufficient.
+
+  +----+----+----+----+----+----+
+  |    local address (6 bit)    |
+  +----+----+----+----+----+----+
+
+If the RAM status characters are related to the RAM memory characters (see
+previous chapter), the bank number and the high 4 bits of the local address may
+be considered a register address while the low 2 bits of the local address are
+the offset of the character within the status characters of that register.
+
+  +----+----+----+----+----+----+----+----+----+
+  |     register address (7 bit)     | offset  |
+  +----+----+----+----+----+----+----+----+----+
+
+Note that bank number switching requires a DCL instruction and that the RAM
+chip and register number of any RAM status address needs to be sent by an SRC
+instruction before the actual data access instruction follows. Only the low 2
+bits of a RAM status character address are part of the actual instruction.
 
 
 5.4 Port I/O
 -------------------------------------------------------------------------------
 
-xyz
+While each port on a ROM or RAM chip should be considered individual, read or
+write access to ports always refer to the entire 4 ports of a chip. Thus, it is
+not possible to address each port individually. Instead, the chip is addressed.
+
+Just like data access, ROM port I/O and RAM port I/O (which is actuall output
+only) must be addressed separately.
+
+For ROM port I/O, the ROM chip may be addressed by a 4-bit value.
+
+  +----+----+----+----+
+  |  ROM chip number  |
+  +----+----+----+----+
+
+For RAM port output, the RAM chip may be addressed by a 5-bit value which
+consists of a 3-bit bank number and a 2-bit chip number on that bank.
+
+  +----+----+----+----+----+
+  | bank address | chip #  |
+  +----+----+----+----+----+
+
+If the current RAM bank remains unchanged, the chip number is sufficient.
+
+  +----+----+
+  | chip #  |
+  +----+----+
+
+Note that bank number switching requires a DCL instruction and that the ROM or
+RAM chip number needs to be sent by an SRC instruction before the actual port
+instruction follows.
 
 
 
