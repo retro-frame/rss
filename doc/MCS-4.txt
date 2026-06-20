@@ -279,7 +279,7 @@ In addition, the following registers are maintained:
 -------------------------------------------------------------------------------
 
 MCS-4 does not use a flat memory layout. Instead, ROM and RAM are treatened
-differently even both have some specifics regarding adressing.
+differently and even both have some specifics regarding adressing.
 
 
 The ROM is implemented by at least one up to 16 4001 ROM chips, each providing
@@ -288,12 +288,12 @@ be addressed by a 12-bit value:
 
   +-------------------------+
   |               byte 0x00 |  <== address 0x000
-  |  ROM chip  1  byte 0x01 |  <== address 0x001
+  |  ROM chip  0  byte 0x01 |  <== address 0x001
   |               ...       |
   |               byte 0xFF |  <== address 0x00F
   +-------------------------+
   |               byte 0x00 |  <== address 0x100
-  |  ROM chip  2  byte 0x01 |  <== address 0x101
+  |  ROM chip  1  byte 0x01 |  <== address 0x101
   |               ...       |
   |               byte 0xFF |  <== address 0x1FF
   +-------------------------+
@@ -302,13 +302,13 @@ be addressed by a 12-bit value:
 
   +-------------------------+
   |               byte 0x00 |  <== address 0xF00
-  |  ROM chip 16  byte 0x01 |  <== address 0xF01
+  |  ROM chip 15  byte 0x01 |  <== address 0xF01
   |               ...       |
   |               byte 0xFF |  <== address 0xFFF
   +-------------------------+
 
-However, sometimes the ROM chip is considered its own segment and an 8-bit
-short address determines the low byte of the address. This matters especially
+However, sometimes a ROM chip is considered its own segment and an 8-bit short
+address just determines the low byte of the address. This matters especially
 for instructions wich are located at the end of a ROM (in such cases, the 8-bit
 short address may refer to the next ROM).
 
@@ -321,32 +321,34 @@ ROM chip. Otherwise, it refers to the next ROM chip.
 
 
 The RAM is implemented by up to 8 RAM banks (it would be valid to have no RAM
-bank at all) . Only one RAM bank is active which is RAM bank 0 after a reset
-but may be switched by a DCL instruction.
+bank at all). Only one RAM bank is active which is RAM bank 0 after a reset but
+may be switched by a DCL instruction.
 
 Each bank consists of 4 4002 RAM chips which in turn provide 4 registers. Each
-register consist of 16 main memory characters and 4 status characters:
+register consists of 16 main memory characters and 4 status characters:
 
+                             +--------------------------+---------------------+
+                             |  main memory characters  |  status characters  |
   +--------------------------+--------------------------+---------------------+
-  |              register 0  |  main memory characters  |  status characters  |
-  |  RAM chip 0  register 1  |  main memory characters  |  status characters  |
-  |              register 2  |  main memory characters  |  status characters  |
-  |              register 3  |  main memory characters  |  status characters  |
+  |              register 0  |  character 0..15         |  character 0..3     |
+  |  RAM chip 0  register 1  |  character 0..15         |  character 0..3     |
+  |              register 2  |  character 0..15         |  character 0..3     |
+  |              register 3  |  character 0..15         |  character 0..3     |
   +--------------------------+--------------------------+---------------------+
-  |              register 0  |  main memory characters  |  status characters  |
-  |  RAM chip 1  register 1  |  main memory characters  |  status characters  |
-  |              register 2  |  main memory characters  |  status characters  |
-  |              register 3  |  main memory characters  |  status characters  |
+  |              register 0  |  character 0..15         |  character 0..3     |
+  |  RAM chip 1  register 1  |  character 0..15         |  character 0..3     |
+  |              register 2  |  character 0..15         |  character 0..3     |
+  |              register 3  |  character 0..15         |  character 0..3     |
   +--------------------------+--------------------------+---------------------+
-  |              register 0  |  main memory characters  |  status characters  |
-  |  RAM chip 2  register 1  |  main memory characters  |  status characters  |
-  |              register 2  |  main memory characters  |  status characters  |
-  |              register 3  |  main memory characters  |  status characters  |
+  |              register 0  |  character 0..15         |  character 0..3     |
+  |  RAM chip 2  register 1  |  character 0..15         |  character 0..3     |
+  |              register 2  |  character 0..15         |  character 0..3     |
+  |              register 3  |  character 0..15         |  character 0..3     |
   +--------------------------+--------------------------+---------------------+
-  |              register 0  |  main memory characters  |  status characters  |
-  |  RAM chip 3  register 1  |  main memory characters  |  status characters  |
-  |              register 2  |  main memory characters  |  status characters  |
-  |              register 3  |  main memory characters  |  status characters  |
+  |              register 0  |  character 0..15         |  character 0..3     |
+  |  RAM chip 3  register 1  |  character 0..15         |  character 0..3     |
+  |              register 2  |  character 0..15         |  character 0..3     |
+  |              register 3  |  character 0..15         |  character 0..3     |
   +--------------------------+--------------------------+---------------------+
 
 Within one RAM bank, a single main memory character (i.e. nibble) can be
@@ -359,7 +361,6 @@ addressed by an 8-bit address of the following format:
 Status characters, however, are addressed by the same address where the low 4
 bits are ignored. Instead, the status character address 0..3 is part of the
 instruction.
-
 
 
 4.3 Physical bus concept
@@ -513,9 +514,9 @@ In terms of the physical bus concept, three cases are considered seperately:
 4.4 Logical bus concept
 -------------------------------------------------------------------------------
 
-Although ROM, RAM and CPU share the same data bus using the control (CM-x) bus
-as part of the adressing, it seems easier to define multiple logical buses for
-each specific case. In addition, the physical multiplexing is resolved.
+Although ROM, RAM and CPU share the same data bus and use the control (CM-x)
+bus as part of the adressing, it seems easier to define multiple logical buses
+for each specific case. In addition, the physical multiplexing is resolved.
 
 
 Between the ROM, the RAM and the CPU, a single 8-bit address bus may be used

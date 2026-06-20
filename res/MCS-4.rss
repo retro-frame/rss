@@ -71,7 +71,7 @@ RFFF/1.0?RSS/1.0
 ; bus concept, see /doc/MCS-4.txt//.
 
 
-ROM "Intel 4001" (ROM/8, ADDR, ROM_PORT/4, IO/1)
+ROM "Intel 4001 256 x 8 bit ROM chip" (ROM/8, ADDR, ROM_PORT/4, IO/1)
 
     ; default path to ROM file:
 
@@ -86,17 +86,18 @@ ROM "Intel 4001" (ROM/8, ADDR, ROM_PORT/4, IO/1)
 
     IO_0_MODE = 0, IO_1_MODE = 0, IO_2_MODE = 0, IO_3_MODE = 0
 {
-    CONST BUF/8(256) = ROM_FILE[$INSTANCE * 256].
+    CONST ROM_MEM/8(256) = ROM_FILE[$INSTANCE * 256].
     VAR PORT_SELECT/1.
 
-ROM READ iiiinnnnnnnn:
+RESET:
 
-    IF (UINT/4(i) == $INSTANCE)
-    {
-        ROM/8 = BUF/8(UINT/16(n)).
-    }
+    $CLEAR.
 
-ADDR WRITE xxxiiiinnnn:
+ROM READ =UINT/4($INSTANCE)nnnnnnnn:
+
+    ROM/8 = ROM_MEM/8(UINT/16(n)).
+
+ADDR xxxiiiinnnn:
 
     IF (UINT/4(i) == $INSTANCE)
     {
@@ -161,12 +162,46 @@ ROM_PORT WRITE:
 }
 
 
-RAM "Intel 4002" (ADDR, RAM_PORT/4, MEM/4, STAT/4, IO/1)
+RAM "Intel 4002 4 x 320 bit RAM bank" (ADDR, MEM/4, STAT/4, RAM_PORT/4, OUT/1)
 {
+    VAR RAM_MEM/4(256).
+    VAR RAM_STAT/4(64).
+    VAR ADDR_SELECT/8.
+
+RESET:
+
+    $CLEAR.
+
+ADDR =UINT/3($INSTANCE)nnnnnnnn:
+
+    ADDR_SELECT/8 = UINT/8(n).
+
+MEM READ =UINT/3($INSTANCE)xxxxxxxx:
+
+    MEM/4 = RAM_MEM/4(ADDR_SELECT/8).
+
+MEM WRITE =UINT/3($INSTANCE)xxxxxxxx:
+
+    RAM_MEM/4(ADDR_SELECT/8) = MEM/4.
+
+STAT READ =UINT/3($INSTANCE)xxxxxxnn:
+
+    STAT/4 = RAM_STAT/4(((ADDR_SELECT/8 >> 6) & 0x3C) | UINT/2(n)).
+
+STAT WRITE =UINT/3($INSTANCE)xxxxxxnn:
+
+    RAM_STAT/4(((ADDR_SELECT/8 >> 6) & 0x3C) | UINT/2(n)) = STAT/4.
+
+RAM_PORT WRITE =UINT/3($INSTANCE)xxxxxxxx:
+
+    OUT/1((ADDR_SELECT/8 >> 4) & 0x0C) = RAM_PORT/4.
+    OUT/1(((ADDR_SELECT/8 >> 4) & 0x0C) + 1) = RAM_PORT/4 >> 1.
+    OUT/1(((ADDR_SELECT/8 >> 4) & 0x0C) + 2) = RAM_PORT/4 >> 2.
+    OUT/1(((ADDR_SELECT/8 >> 4) & 0x0C) + 3) = RAM_PORT/4 >> 3.
 }
 
 
-CPU "Intel 4004" (ROM/8, ADDR, ROM_PORT/4, RAM_PORT/4, MEM/4, STAT/4, TEST/1)
+CPU "Intel 4004 CPU" (ROM/8, ADDR, ROM_PORT/4, RAM_PORT/4, MEM/4, STAT/4, TEST/1)
 {
     ; registers:
 
@@ -334,7 +369,7 @@ OPCODE 1000rrrr:
 
     A/4 += REG/4(UINT/4(r)) + $FLAGS/1.
 
-    $FLAGS(CF).
+    $FLAGS/1(CF).
 
 OPCODE 1001rrrr:
 
@@ -342,7 +377,7 @@ OPCODE 1001rrrr:
 
     A/4 += ~REG/4(UINT/4(r)) + ~$FLAGS/1.
 
-    $FLAGS(CF).
+    $FLAGS/1(CF).
 
 OPCODE 1010rrrr:
 
@@ -374,5 +409,182 @@ OPCODE 11100000:
 
     ; WRM (write main memory):
 
-    A/4 = UINT/4(d).
+    MEM/4(RAM_BANK/3 << 8) = A/4.
+
+OPCODE 11100001:
+
+    ; WMP (write RAM port):
+
+    RAM_PORT/4(RAM_BANK/3 << 8) = A/4.
+
+OPCODE 11100010:
+
+    ; WRR (write ROM port):
+
+    ROM_PORT/4 = A/4.
+
+OPCODE 111001ss:
+
+    ; WRx (write status char):
+
+    STAT/4((RAM_BANK/3 << 8) | UINT/2(s)) = A/4.
+
+OPCODE 11101000:
+
+    ; SBM (subtract main memory):
+
+    A/4 += ~MEM/4(RAM_BANK/3 << 8) + ~$FLAGS/1.
+
+    $FLAGS/1(CF).
+
+OPCODE 11101001:
+
+    ; RDM (read main memory):
+
+    A/4 = MEM/4(RAM_BANK/3 << 8).
+
+OPCODE 11101010:
+
+    ; RDR (read ROM port):
+
+    A/4 = ROM_PORT/4.
+
+OPCODE 11101011:
+
+    ; ADM (add main memory):
+
+    A/4 += MEM/4(RAM_BANK/3 << 8) + $FLAGS/1.
+
+    $FLAGS/1(CF).
+
+OPCODE 111011ss:
+
+    ; RDx (read status char):
+
+    A/4 = STAT/4((RAM_BANK/3 << 8) | UINT/2(s)).
+
+OPCODE 11110000:
+
+    ; CLB (clear both):
+
+    A/4 = 0.
+
+    $FLAGS/1(0).
+
+OPCODE 11110001:
+
+    ; CLC (clear carry):
+
+    $FLAGS/1(0).
+
+OPCODE 11110010:
+
+    ; IAC (increment accumulator):
+
+    A/4 += 1.
+
+    $FLAGS/1(CF).
+
+OPCODE 11110011:
+
+    ; CMC (complement carry):
+
+    $FLAGS/1(~CF).
+
+OPCODE 11110100:
+
+    ; CMA (complement):
+
+    A/4 = ~A/4.
+
+OPCODE 11110101:
+
+    ; RAL (rotate left):
+
+    A/4 <<<= 1.  ; rotate without carry
+
+    $FLAGS/1 ^= A/4.  ; swap least significand bit with carry
+    A/4 ^= $FLAGS/1.
+    $FLAGS/1 ^= A/4.
+
+OPCODE 11110110:
+
+    ; RAR (rotate right):
+
+    $FLAGS/1 ^= A/4.  ; swap least significand bit with carry
+    A/4 ^= $FLAGS/1.
+    $FLAGS/1 ^= A/4.
+
+    A/4 >>>= 1.  ; rotate without carry
+
+OPCODE 11110111:
+
+    ; TCC (transfer carry and clear):
+
+    A/4 = $FLAGS/1.
+
+    $FLAGS/1(0).
+
+OPCODE 11111000:
+
+    ; DAC (decrement accumulator):
+
+    A/4 += 0xF.
+
+    $FLAGS/1(CF).
+
+OPCODE 11111001:
+
+    ; TCS (transfer carry substract):
+
+    IF ($FLAGS/1 == 0)
+    {
+        A/4 = 9.
+    }
+    ELSE
+    {
+        A/4 = 10.
+    }
+
+    $FLAGS/1(0).
+
+OPCODE 11111010:
+
+    ; STC (set carry):
+
+    $FLAGS/1(1).
+
+OPCODE 11111011:
+
+    ; DAA (decimal adjust accumulator):
+
+    IF (($FLAGS/1 == 1) || (A/4 > 9))
+    {
+        A/4 += 6.
+
+        $FLAGS/1(CF).
+    }
+
+OPCODE 11111100:
+
+    ; KBP (keyboard process):
+
+    IF (A/4 == 0x4)
+    {
+        A/4 = 0x3.
+    }
+    ELIF (A/4 == 0x8)
+    {
+        A/4 = 0x4.
+    }
+    ELIF (A/4 > 2)
+    {
+        A/4 = 0xF.
+    }
+
+OPCODE 11111101:
+
+    ; DCL (designate command line):
+
+    RAM_BANK/3 = A/4.
 }
