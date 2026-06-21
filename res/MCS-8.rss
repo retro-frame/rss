@@ -57,8 +57,8 @@ RESET:
 
     $CYCLE_FREQ = CLOCK_RATE.
 
-    $CLEAR.          ; clear all CPU variables
-    $FETCH = MEM/8.  ; bind opcode fetch to bus MEM/8
+    $CLEAR.              ; clear all CPU variables
+    $FETCH = MEM/8(14).  ; 14-bit program counter, fetch from bus MEM/8
 
 OPCODE 00rrr000:
 

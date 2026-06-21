@@ -32,33 +32,35 @@ RFFF/1.0?RSS/1.0
 ;   writes to the ROM and RAM components as write events. This bus uses 11 bits
 ;   to represent the address but does not transfer data. Each RAM bank shall
 ;   recognize itself by the high 3 bits (which are taken from the most recent
-;   DCL instruction and transmitted over the CM-RAM lines on the actual system)
-;   while the ROM components shall ignore those high bits as the ROM chip is
-;   determined by the middle 4 bits (according to the SRC instruction).
+;   DCL instruction and transmitted over the CM-RAM-x lines on the actual
+;   system) while the ROM components shall ignore those high bits as the ROM
+;   chip is determined by the middle 4 bits (according to the SRC instruction).
 ;
 ; - ROM_PORT/4
 ;
 ;   This bus is used for ROM port transfer. It does not use an address by
-;   itself as the address (i.e. ROM chip) previously sent by the ADDR bus shall
-;   be used.
+;   itself as the port address (i.e. the ROM chip) has been sent in advance by
+;   the ADDR bus.
 ;
 ; - RAM_PORT/4
 ;
-;   This bus is used for RAM port transfer. It does not use an address by
-;   itself as the address (i.e. bank and chip) previously sent by the ADDR bus
-;   shall be used.
+;   This bus is used for RAM port transfer. An 11-bit address is used where the
+;   high 3 bits refer to the current RAM bank (CM-RAM-x signals) but the port
+;   address (i.e. the RAM chip) has been sent in advance by the ADDR bus.
 ;
 ; - MEM/4
 ;
-;   This bus is used for RAM memory character transfer. It does not use an
-;   address by itself as the address (i.e. bank, chip, register and character)
-;   previously sent by the ADDR bus shall be used.
+;   This bus is used for RAM memory character transfer. An 11-bit address is
+;   used where the high 3 bits refer to the current RAM bank (CM-RAM-x signals)
+;   but the other parts of the address (i.e. chip, register and character) have
+;   been sent in advance by the ADDR bus.
 ;
 ; - STAT/4
 ;
-;   This bus is used for RAM status character transfer. It uses a 2-bit address
-;   to represent the status character while bank, chip and register shall be
-;   taken from the most recent value sent by the ADDR bus.
+;   This bus is used for RAM status character transfer. An 11-bit address is
+;   used where the high 3 bits refer to the current RAM bank (CM-RAM-x signals)
+;   and the low 2 bits refer to the status character. The other parts of the
+;   address (i.e. chip and register) have been sent in advance by the ADDR bus.
 ;
 ; - IO/1
 ;
@@ -252,8 +254,8 @@ RESET:
 
     $CYCLE_FREQ = CLOCK_RATE.
 
-    $CLEAR.          ; clear all CPU variables
-    $FETCH = ROM/8.  ; bind opcode fetch to bus ROM/8
+    $CLEAR.              ; clear all CPU variables
+    $FETCH = ROM/8(12).  ; 12-bit program counter, fetch from bus ROM/8
 
 OPCODE 0000xxxx:
 
