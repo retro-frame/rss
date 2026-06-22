@@ -24,29 +24,25 @@ CPU "Intel 8008 CPU" (MEM/8, PORT/8, INT/8)
 
     VAR REG/8(7) A, B, C, D, E, H, L.
 
+    VAR F/4 { P/1, S/1, Z/1, C/1 }  ; P = parity, S = sign, Z = zero, C = carry
+
     READ HL/14
     {
-        HL/14 = REG/8(H) << 8 | REG/8(L).
+        HL/14 = $VALUE(REG/8(H), REG/8(L)).
     }
-
-    ; $FLAGS bits (P = parity, S = sign, Z = zero, C = carry):
-
-    ; +---+---+---+---+
-    ; | P | S | Z | C |
-    ; +---+---+---+---+
 
     VAR ADDRESS_STACK/14(8).
 
     VAR ADDRESS_STACK_PTR/3.
 
-    DEF ADDRESS_STACK_PUSH
+    PROC ADDRESS_STACK_PUSH
     {
         ADDRESS_STACK/14(ADDRESS_STACK_PTR/3) = $.
 
         ADDRESS_STACK_PTR/3 += 1.  ; may overflow
     }
 
-    DEF ADDRESS_STACK_POP
+    PROC ADDRESS_STACK_POP
     {
         ADDRESS_STACK_PTR/3 -= 1.  ; may underflow
 
@@ -57,8 +53,8 @@ RESET:
 
     $CYCLE_FREQ = CLOCK_RATE.
 
-    $CLEAR.              ; clear all CPU variables
-    $FETCH = MEM/8(14).  ; 14-bit program counter, fetch from bus MEM/8
+    $CLEAR.             ; clear all CPU variables
+    $FETCH(MEM/8(14)).  ; 14-bit program counter, fetch from bus MEM/8
 
 OPCODE 00rrr000:
 
@@ -75,7 +71,8 @@ OPCODE 00rrr000:
 
         REG/8(UINT/3(r)) += 1.
 
-        $FLAGS/4(PF, SF, ZF, ?).
+        F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, ?).
+
         $CYCLES(10).
     }
     ELSE
@@ -99,7 +96,8 @@ OPCODE 00rrr001:
 
         REG/8(UINT/3(r)) += 1.
 
-        $FLAGS/4(PF, SF, ZF, ?).
+        F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, ?).
+
         $CYCLES(10).
     }
     ELSE
@@ -114,14 +112,15 @@ OPCODE 00000010:
 
     REG/8(A) <<<= 1.
 
-    $FLAGS/4(?, ?, ?, REG/8(A) & 1).
+    F/4(?, ?, ?, REG/8(A) & 1).
+
     $CYCLES(10).
 
 OPCODE 000cc011:
 
     ; RFc (return if condition is false):
 
-    IF (!(FLAGS/4 & (1 << UINT/2(c))))
+    IF ((F/4 & (1 << UINT/2(c))) == 0)
     {
         ADDRESS_STACK_POP.
 
@@ -134,7 +133,7 @@ OPCODE 001cc011:
 
     ; RTc (return if condition is true):
 
-    IF (FLAGS/4 & (1 << UINT/2(c)))
+    IF (F/4 & (1 << UINT/2(c)) != 0)
     {
         ADDRESS_STACK_POP.
 
@@ -149,16 +148,18 @@ OPCODE 00000100 bbbbbbbb:
 
     REG/8(A) += UINT/8(b).
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
+
     $CYCLES(16).
 
 OPCODE 00001100 bbbbbbbb:
 
     ; ACI (add immediate with carry):
 
-    REG/8(A) += UINT/8(b) + (FLAGS/4 & 1).
+    REG/8(A) += UINT/8(b) + (F/4 & 1).
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
+
     $CYCLES(16).
 
 OPCODE 00010100 bbbbbbbb:
@@ -167,16 +168,18 @@ OPCODE 00010100 bbbbbbbb:
 
     REG/8(A) -= UINT/8(b).
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
+
     $CYCLES(16).
 
 OPCODE 00011100 bbbbbbbb:
 
     ; SBI (subtract immediate with borrow):
 
-    REG/8(A) -= UINT/8(b) + (FLAGS/4 & 1).
+    REG/8(A) -= UINT/8(b) + (F/4 & 1).
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
+
     $CYCLES(16).
 
 OPCODE 001x0010:
@@ -190,7 +193,8 @@ OPCODE 00100100 bbbbbbbb:
 
     REG/8(A) &= UINT/8(b).
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
+
     $CYCLES(16).
 
 OPCODE 00101100 bbbbbbbb:
@@ -199,7 +203,8 @@ OPCODE 00101100 bbbbbbbb:
 
     REG/8(A) ^= UINT/8(b).
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
+
     $CYCLES(16).
 
 OPCODE 00110100 bbbbbbbb:
@@ -208,7 +213,8 @@ OPCODE 00110100 bbbbbbbb:
 
     REG/8(A) |= UINT/8(b).
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
+
     $CYCLES(16).
 
 OPCODE 00111100 bbbbbbbb:
@@ -217,7 +223,8 @@ OPCODE 00111100 bbbbbbbb:
 
     REG/8(A) - UINT/8(b).
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
+
     $CYCLES(16).
 
 OPCODE 00aaa101:
@@ -227,6 +234,7 @@ OPCODE 00aaa101:
     ADDRESS_STACK_PUSH.
 
     $ = UINT/3(a) << 3.
+
     $CYCLES(10).
 
 OPCODE 00rrr110 bbbbbbbb:
@@ -236,6 +244,7 @@ OPCODE 00rrr110 bbbbbbbb:
         ; LrI (load register immediate):
 
         REG/8(UINT/3(r)) = UINT/8(b).
+
         $CYCLES(16).
     }
     ELSE
@@ -243,6 +252,7 @@ OPCODE 00rrr110 bbbbbbbb:
         ; LMI (load memory immediate):
 
         MEM/8(HL/14) = UINT/8(b).
+
         $CYCLES(18).
     }
 
@@ -258,7 +268,7 @@ OPCODE 00001010:
 
     ; RRC (rotate right):
 
-    $FLAGS/4(?, ?, ?, REG/8(A) & 1).
+    F/4(?, ?, ?, REG/8(A) & 1).
 
     REG/8(A) >>>= 1.
 
@@ -270,9 +280,9 @@ OPCODE 00010010:
 
     REG/8(A) <<<= 1.
 
-    FLAGS/4 ^= REG/8(A) & 1.
-    REG/8(A) ^= FLAGS/4 & 1.
-    FLAGS/4 ^= REG/8(A) & 1.
+    F:C/1 ^= REG/8(A).
+    REG/8(A) ^= F:C/1.
+    F:C/1 ^= REG/8(A).
 
     $CYCLES(10).
 
@@ -280,9 +290,9 @@ OPCODE 00011010:
 
     ; RAR (rotate arithmetic right):
 
-    FLAGS/4 ^= REG/8(A) & 1.
-    REG/8(A) ^= FLAGS/4 & 1.
-    FLAGS/4 ^= REG/8(A) & 1.
+    F:C/1 ^= REG/8(A).
+    REG/8(A) ^= F:C/1.
+    F:C/1 ^= REG/8(A).
 
     REG/8(A) >>>= 1.
 
@@ -292,7 +302,7 @@ OPCODE 010cc000 llllllll xxhhhhhh:
 
     ; JFc (jump if condition is false):
 
-    IF (!(FLAGS/4 & (1 << UINT/2(c))))
+    IF ((F/4 & (1 << UINT/2(c))) == 0)
     {
         $ = UINT/8(l) | UINT/6(h) << 8.
 
@@ -305,7 +315,7 @@ OPCODE 011cc000 llllllll xxhhhhhh:
 
     ; JTc (jump if condition is true):
 
-    IF (FLAGS/4 & (1 << UINT/2(c)))
+    IF (F/4 & (1 << UINT/2(c)) != 0)
     {
         $ = UINT/8(l) | UINT/6(h) << 8.
 
@@ -337,7 +347,7 @@ OPCODE 010cc010 llllllll xxhhhhhh:
 
     ; CFc (call if condition is false):
 
-    IF (!(FLAGS/4 & (1 << UINT/2(c))))
+    IF ((F/4 & (1 << UINT/2(c))) == 0)
     {
         ADDRESS_STACK_PUSH.
 
@@ -352,7 +362,7 @@ OPCODE 011cc010 llllllll xxhhhhhh:
 
     ; CTc (call if condition is true):
 
-    IF (FLAGS/4 & (1 << UINT/2(c)))
+    IF (F/4 & (1 << UINT/2(c)) != 0)
     {
         ADDRESS_STACK_PUSH.
 
@@ -400,7 +410,7 @@ OPCODE 10000rrr:
         $CYCLES(16).
     }
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
 
 OPCODE 10001rrr:
 
@@ -408,7 +418,7 @@ OPCODE 10001rrr:
     {
         ; ACr (add register with carry):
 
-        REG/8(A) += REG/8(UINT/3(r)) + (FLAGS/4 & 1).
+        REG/8(A) += REG/8(UINT/3(r)) + (F/4 & 1).
 
         $CYCLES(10).
     }
@@ -416,12 +426,12 @@ OPCODE 10001rrr:
     {
         ; ACM (add memory with carry):
 
-        REG/8(A) += MEM/8(HL/14) + (FLAGS/4 & 1).
+        REG/8(A) += MEM/8(HL/14) + (F/4 & 1).
 
         $CYCLES(16).
     }
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
 
 OPCODE 10010rrr:
 
@@ -442,7 +452,7 @@ OPCODE 10010rrr:
         $CYCLES(16).
     }
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
 
 OPCODE 10011rrr:
 
@@ -450,7 +460,7 @@ OPCODE 10011rrr:
     {
         ; SBr (sub register with borrow):
 
-        REG/8(A) -= REG/8(UINT/3(r)) + (FLAGS/4 & 1).
+        REG/8(A) -= REG/8(UINT/3(r)) + (F/4 & 1).
 
         $CYCLES(10).
     }
@@ -458,12 +468,12 @@ OPCODE 10011rrr:
     {
         ; SBM (sub memory with borrow):
 
-        REG/8(A) -= MEM/8(HL/14) + (FLAGS/4 & 1).
+        REG/8(A) -= MEM/8(HL/14) + (F/4 & 1).
 
         $CYCLES(16).
     }
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
 
 OPCODE 10100rrr:
 
@@ -484,7 +494,7 @@ OPCODE 10100rrr:
         $CYCLES(16).
     }
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
 
 OPCODE 10101rrr:
 
@@ -505,7 +515,7 @@ OPCODE 10101rrr:
         $CYCLES(16).
     }
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
 
 OPCODE 10110rrr:
 
@@ -526,7 +536,7 @@ OPCODE 10110rrr:
         $CYCLES(16).
     }
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
 
 OPCODE 10111rrr:
 
@@ -547,7 +557,7 @@ OPCODE 10111rrr:
         $CYCLES(16).
     }
 
-    $FLAGS/4(PF, SF, ZF, CF).
+    F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, $FLAGS:CARRY).
 
 OPCODE 11dddsss:
 
@@ -587,5 +597,5 @@ INT:
 
     ; interrupt request:
 
-    $FETCH_ONCE = INT/8.  ; fetch one instruction, do not advance $
+    $FETCH_ONCE(INT/8).  ; fetch one instruction, do not advance $
 }

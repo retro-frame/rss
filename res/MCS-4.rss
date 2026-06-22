@@ -26,7 +26,7 @@ RFFF/1.0?RSS/1.0
 ;   events from the CPU. A 12-bit address is used and each ROM shall recognize
 ;   itself by the high 4 bits. The low 8 bits represent the local byte address.
 ;
-; - ADDR
+; - SRC
 ;
 ;   This bus is used by the CPU to transmit the address for subsequent reads or
 ;   writes to the ROM and RAM components as write events. This bus uses 11 bits
@@ -40,27 +40,27 @@ RFFF/1.0?RSS/1.0
 ;
 ;   This bus is used for ROM port transfer. It does not use an address by
 ;   itself as the port address (i.e. the ROM chip) has been sent in advance by
-;   the ADDR bus.
+;   the SRC bus.
 ;
 ; - RAM_PORT/4
 ;
 ;   This bus is used for RAM port transfer. An 11-bit address is used where the
 ;   high 3 bits refer to the current RAM bank (CM-RAM-x signals) but the port
-;   address (i.e. the RAM chip) has been sent in advance by the ADDR bus.
+;   address (i.e. the RAM chip) has been sent in advance by the SRC bus.
 ;
 ; - MEM/4
 ;
 ;   This bus is used for RAM memory character transfer. An 11-bit address is
 ;   used where the high 3 bits refer to the current RAM bank (CM-RAM-x signals)
 ;   but the other parts of the address (i.e. chip, register and character) have
-;   been sent in advance by the ADDR bus.
+;   been sent in advance by the SRC bus.
 ;
 ; - STAT/4
 ;
 ;   This bus is used for RAM status character transfer. An 11-bit address is
 ;   used where the high 3 bits refer to the current RAM bank (CM-RAM-x signals)
 ;   and the low 2 bits refer to the status character. The other parts of the
-;   address (i.e. chip and register) have been sent in advance by the ADDR bus.
+;   address (i.e. chip and register) have been sent in advance by the SRC bus.
 ;
 ; - IO/1
 ;
@@ -73,7 +73,7 @@ RFFF/1.0?RSS/1.0
 ; bus concept, see /doc/MCS-4.txt//.
 
 
-ROM "Intel 4001 256 x 8 bit ROM chip" (ROM/8, ADDR, ROM_PORT/4, IO/1)
+ROM "Intel 4001 256 x 8 bit ROM chip" (ROM/8, SRC, ROM_PORT/4, IO/1)
 
     ; default path to ROM file:
 
@@ -89,7 +89,7 @@ ROM "Intel 4001 256 x 8 bit ROM chip" (ROM/8, ADDR, ROM_PORT/4, IO/1)
     IO_0_MODE = 0, IO_1_MODE = 0, IO_2_MODE = 0, IO_3_MODE = 0
 {
     CONST ROM_MEM/8(256) = ROM_FILE[$INSTANCE * 256].
-    VAR PORT_SELECT/1.
+    VAR SRC_PORT/1.
 
 RESET:
 
@@ -99,39 +99,39 @@ ROM READ =UINT/4($INSTANCE)nnnnnnnn:
 
     ROM/8 = ROM_MEM/8(UINT/16(n)).
 
-ADDR xxxiiiinnnn:
+SRC xxxiiiinnnn:
 
     IF (UINT/4(i) == $INSTANCE)
     {
-        PORT_SELECT/1 = 1.
+        SRC_PORT/1 = 1.
     }
     ELSE
     {
-        PORT_SELECT/1 = 0.
+        SRC_PORT/1 = 0.
     }
 
 ROM_PORT READ:
 
-    IF (PORT_SELECT/1 == 1)
+    IF (SRC_PORT/1 == 1)
     {
         ROM_PORT/4 = 0.
 
-        IF ((IO_0_MODE == 1) || ((IO_0_MODE != 0) && IO/1(0)))
+        IF ((IO_0_MODE == 1) || ((IO_0_MODE != 0) && (IO/1(0) != 0)))
         {
-            ROM_PORT/4 |= 0x8.
+            ROM_PORT/4 |= 0x1.
         }
 
-        IF ((IO_1_MODE == 1) || ((IO_1_MODE != 0) && IO/1(1)))
+        IF ((IO_1_MODE == 1) || ((IO_1_MODE != 0) && (IO/1(1) != 0)))
         {
-            ROM_PORT/4 |= 0x8.
+            ROM_PORT/4 |= 0x2.
         }
 
-        IF ((IO_2_MODE == 1) || ((IO_2_MODE != 0) && IO/1(2)))
+        IF ((IO_2_MODE == 1) || ((IO_2_MODE != 0) && (IO/1(2) != 0)))
         {
-            ROM_PORT/4 |= 0x8.
+            ROM_PORT/4 |= 0x4.
         }
 
-        IF ((IO_3_MODE == 1) || ((IO_3_MODE != 0) && IO/1(3)))
+        IF ((IO_3_MODE == 1) || ((IO_3_MODE != 0) && (IO/1(3) != 0)))
         {
             ROM_PORT/4 |= 0x8.
         }
@@ -139,24 +139,24 @@ ROM_PORT READ:
 
 ROM_PORT WRITE:
 
-    IF (PORT_SELECT/1 == 1)
+    IF (SRC_PORT/1 == 1)
     {
         IF (IO_0_MODE > 1)
         {
             IO/1(0) = ROM_PORT/4.
         }
 
-        IF ((IO_1_MODE == 1) || ((IO_1_MODE != 0) && IO/1(1)))
+        IF (IO_1_MODE > 1)
         {
             IO/1(1) = ROM_PORT/4 >> 1.
         }
 
-        IF ((IO_2_MODE == 1) || ((IO_2_MODE != 0) && IO/1(2)))
+        IF (IO_2_MODE > 1)
         {
             IO/1(2) = ROM_PORT/4 >> 2.
         }
 
-        IF ((IO_3_MODE == 1) || ((IO_3_MODE != 0) && IO/1(3)))
+        IF (IO_3_MODE > 1)
         {
             IO/1(3) = ROM_PORT/4 >> 3.
         }
@@ -164,46 +164,51 @@ ROM_PORT WRITE:
 }
 
 
-RAM "Intel 4002 4 x 320 bit RAM bank" (ADDR, MEM/4, STAT/4, RAM_PORT/4, OUT/1)
+RAM "Intel 4002 4 x 320 bit RAM bank" (SRC, MEM/4, STAT/4, RAM_PORT/4, OUT/1)
 {
-    VAR RAM_MEM/4(256).
-    VAR RAM_STAT/4(64).
-    VAR ADDR_SELECT/8.
+    VAR CHIP(4)
+    {
+        REGISTER(4) { MAIN_CHAR/4(16), STATUS_CHAR/4(4) }
+    }
+
+    VAR ADDR { CHIP/2, REGISTER/2, CHAR/4 }
 
 RESET:
 
     $CLEAR.  ; clear all RAM variables
 
-ADDR =UINT/3($INSTANCE)nnnnnnnn:
+SRC =UINT/3($INSTANCE)ccrrnnnn:
 
-    ADDR_SELECT/8 = UINT/8(n).
+    ADDR:CHIP/2 = UINT/2(c).
+    ADDR:REGISTER/2 = UINT/2(r).
+    ADDR:CHAR/4 = UINT/4(n).
 
 MEM READ =UINT/3($INSTANCE)xxxxxxxx:
 
-    MEM/4 = RAM_MEM/4(ADDR_SELECT/8).
+    MEM/4 = CHIP(ADDR:CHIP):REGISTER(ADDR:REGISTER):MAIN_CHAR/4(ADDR:CHAR).
 
 MEM WRITE =UINT/3($INSTANCE)xxxxxxxx:
 
-    RAM_MEM/4(ADDR_SELECT/8) = MEM/4.
+    CHIP(ADDR:CHIP):REGISTER(ADDR:REGISTER):MAIN_CHAR/4(ADDR:CHAR) = MEM/4.
 
 STAT READ =UINT/3($INSTANCE)xxxxxxnn:
 
-    STAT/4 = RAM_STAT/4(((ADDR_SELECT/8 >> 6) & 0x3C) | UINT/2(n)).
+    STAT/4 = CHIP(ADDR:CHIP):REGISTER(ADDR:REGISTER):STATUS_CHAR/4(UINT/2(n)).
 
 STAT WRITE =UINT/3($INSTANCE)xxxxxxnn:
 
-    RAM_STAT/4(((ADDR_SELECT/8 >> 6) & 0x3C) | UINT/2(n)) = STAT/4.
+    CHIP(ADDR:CHIP):REGISTER(ADDR:REGISTER):STATUS_CHAR/4(UINT/2(n)) = STAT/4.
 
 RAM_PORT WRITE =UINT/3($INSTANCE)xxxxxxxx:
 
-    OUT/1((ADDR_SELECT/8 >> 4) & 0x0C) = RAM_PORT/4.
-    OUT/1(((ADDR_SELECT/8 >> 4) & 0x0C) + 1) = RAM_PORT/4 >> 1.
-    OUT/1(((ADDR_SELECT/8 >> 4) & 0x0C) + 2) = RAM_PORT/4 >> 2.
-    OUT/1(((ADDR_SELECT/8 >> 4) & 0x0C) + 3) = RAM_PORT/4 >> 3.
+    OUT/1(ADDR:CHIP << 2) = RAM_PORT/4.
+    OUT/1((ADDR:CHIP << 2) + 1) = RAM_PORT/4 >> 1.
+    OUT/1((ADDR:CHIP << 2) + 2) = RAM_PORT/4 >> 2.
+    OUT/1((ADDR:CHIP << 2) + 3) = RAM_PORT/4 >> 3.
 }
 
 
-CPU "Intel 4004 CPU" (ROM/8, ADDR, ROM_PORT/4, RAM_PORT/4, MEM/4, STAT/4, TEST/1)
+CPU "Intel 4004 CPU" (ROM/8, SRC, ROM_PORT/4, RAM_PORT/4, MEM/4, STAT/4, TEST/1)
 
     ; default clock rate is 740 kHz (1.35 microseconds per cycle):
 
@@ -211,39 +216,34 @@ CPU "Intel 4004 CPU" (ROM/8, ADDR, ROM_PORT/4, RAM_PORT/4, MEM/4, STAT/4, TEST/1
 {
     ; registers:
 
-    VAR RAM_BANK/3.  ; RAM bank currently selected by DCL
-    VAR A/4.         ; accumulator
-    VAR REG/4(16).   ; 16 4-bit registers
+    VAR A/4.        ; accumulator
+    VAR CY/1.       ; carry flag (flip-flop)
+    VAR REG/4(16).  ; 16 4-bit registers
 
     READ REG/8(x)
     {
-        REG/8 = REG/4(2 * x) << 4 | REG/4(2 * x + 1).  ; high nibble first
+        REG/8 = $VALUE(REG/4(2 * x), REG/4(2 * x + 1)).  ; high nibble first
     }
 
     WRITE REG/8(x)
     {
-        REG/4(2 * x) = REG/8 >> 4.  ; high nibble first
-        REG/4(2 * x + 1) = REG/8.
+        $VALUE(REG/4(2 * x), REG/4(2 * x + 1)) = REG/8.  ; high nibble first
     }
-
-    ; $FLAGS bit (carry):
-
-    ; +----+
-    ; | CY |
-    ; +----+
 
     VAR ADDRESS_STACK/12(4).
 
     VAR ADDRESS_STACK_PTR/2.
 
-    DEF ADDRESS_STACK_PUSH
+    VAR RAM_BANK/3.  ; RAM bank currently selected by DCL
+
+    PROC ADDRESS_STACK_PUSH
     {
         ADDRESS_STACK/12(ADDRESS_STACK_PTR/2) = $.
 
         ADDRESS_STACK_PTR/2 += 1.  ; may overflow
     }
 
-    DEF ADDRESS_STACK_POP
+    PROC ADDRESS_STACK_POP
     {
         ADDRESS_STACK_PTR/2 -= 1.  ; may underflow
 
@@ -254,8 +254,8 @@ RESET:
 
     $CYCLE_FREQ = CLOCK_RATE.
 
-    $CLEAR.              ; clear all CPU variables
-    $FETCH = ROM/8(12).  ; 12-bit program counter, fetch from bus ROM/8
+    $CLEAR.             ; clear all CPU variables
+    $FETCH(ROM/8(12)).  ; 12-bit program counter, fetch from bus ROM/8
 
 OPCODE 0000xxxx:
 
@@ -281,7 +281,7 @@ OPCODE 0001nact llllllll:
         T/1 |= 1.  ; test signal on bus TEST/1 is zero
     }
 
-    IF (UINT/1(c) && ($FLAGS/1 == 1))
+    IF (UINT/1(c) && (CY/1 == 1))
     {
         T/1 |= 1.  ; carry flag CY is set
     }
@@ -310,7 +310,7 @@ OPCODE 0010rrr1:
 
     ; SRC (send register control):
 
-    ADDR(RAM_BANK << 8 | REG/8(UINT/3(r))).
+    SRC(RAM_BANK << 8 | REG/8(UINT/3(r))).
 
     $CYCLES(8).
 
@@ -373,18 +373,20 @@ OPCODE 1000rrrr:
 
     ; ADD (add register with carry):
 
-    A/4 += REG/4(UINT/4(r)) + $FLAGS/1.
+    A/4 += REG/4(UINT/4(r)) + CY/1.
 
-    $FLAGS/1(CF).
+    CY/1 = $FLAGS:CARRY.
+
     $CYCLES(8).
 
 OPCODE 1001rrrr:
 
     ; SUB (subtract register with borrow):
 
-    A/4 += ~REG/4(UINT/4(r)) + ~$FLAGS/1.
+    A/4 += ~REG/4(UINT/4(r)) + (CY/1 ^ 1).
 
-    $FLAGS/1(CF).
+    CY/1 = $FLAGS:CARRY.
+
     $CYCLES(8).
 
 OPCODE 1010rrrr:
@@ -457,9 +459,10 @@ OPCODE 11101000:
 
     ; SBM (subtract main memory with borrow):
 
-    A/4 += ~MEM/4(RAM_BANK/3 << 8) + ~$FLAGS/1.
+    A/4 += ~MEM/4(RAM_BANK/3 << 8) + (CY/1 ^ 1).
 
-    $FLAGS/1(CF).
+    CY/1 = $FLAGS:CARRY.
+
     $CYCLES(8).
 
 OPCODE 11101001:
@@ -482,9 +485,10 @@ OPCODE 11101011:
 
     ; ADM (add main memory with carry):
 
-    A/4 += MEM/4(RAM_BANK/3 << 8) + $FLAGS/1.
+    A/4 += MEM/4(RAM_BANK/3 << 8) + CY/1.
 
-    $FLAGS/1(CF).
+    CY/1 = $FLAGS:CARRY.
+
     $CYCLES(8).
 
 OPCODE 111011ss:
@@ -500,15 +504,16 @@ OPCODE 11110000:
     ; CLB (clear accumulator and carry):
 
     A/4 = 0.
+    CY/1 = 0.
 
-    $FLAGS/1(0).
     $CYCLES(8).
 
 OPCODE 11110001:
 
     ; CLC (clear carry):
 
-    $FLAGS/1(0).
+    CY/1 = 0.
+
     $CYCLES(8).
 
 OPCODE 11110010:
@@ -517,14 +522,16 @@ OPCODE 11110010:
 
     A/4 += 1.
 
-    $FLAGS/1(CF).
+    CY/1 = $FLAGS:CARRY.
+
     $CYCLES(8).
 
 OPCODE 11110011:
 
     ; CMC (complement carry):
 
-    $FLAGS/1(~CF).
+    CY/1 = ~CY/1.
+
     $CYCLES(8).
 
 OPCODE 11110100:
@@ -541,9 +548,9 @@ OPCODE 11110101:
 
     A/4 <<<= 1.  ; rotate without carry
 
-    $FLAGS/1 ^= A/4.  ; swap least significand bit with carry
-    A/4 ^= $FLAGS/1.
-    $FLAGS/1 ^= A/4.
+    CY/1 ^= A/4.  ; swap least significand bit with carry
+    A/4 ^= CY/1.
+    CY/1 ^= A/4.
 
     $CYCLES(8).
 
@@ -551,9 +558,9 @@ OPCODE 11110110:
 
     ; RAR (rotate accumulator right):
 
-    $FLAGS/1 ^= A/4.  ; swap least significand bit with carry
-    A/4 ^= $FLAGS/1.
-    $FLAGS/1 ^= A/4.
+    CY/1 ^= A/4.  ; swap least significand bit with carry
+    A/4 ^= CY/1.
+    CY/1 ^= A/4.
 
     A/4 >>>= 1.  ; rotate without carry
 
@@ -563,9 +570,9 @@ OPCODE 11110111:
 
     ; TCC (transfer carry and clear):
 
-    A/4 = $FLAGS/1.
+    A/4 = CY/1.
+    CY/1 = 0.
 
-    $FLAGS/1(0).
     $CYCLES(8).
 
 OPCODE 11111000:
@@ -574,14 +581,15 @@ OPCODE 11111000:
 
     A/4 += 0xF.
 
-    $FLAGS/1(CF).
+    CY/1 = $FLAGS:CARRY.
+
     $CYCLES(8).
 
 OPCODE 11111001:
 
     ; TCS (transfer carry substract):
 
-    IF ($FLAGS/1 == 0)
+    IF (CY/1 == 0)
     {
         A/4 = 9.
     }
@@ -590,25 +598,27 @@ OPCODE 11111001:
         A/4 = 10.
     }
 
-    $FLAGS/1(0).
+    CY/1 = 0.
+
     $CYCLES(8).
 
 OPCODE 11111010:
 
     ; STC (set carry):
 
-    $FLAGS/1(1).
+    CY/1 = 1.
+
     $CYCLES(8).
 
 OPCODE 11111011:
 
     ; DAA (decimal adjust accumulator):
 
-    IF (($FLAGS/1 == 1) || (A/4 > 9))
+    IF ((CY/1 == 1) || (A/4 > 9))
     {
         A/4 += 6.
 
-        $FLAGS/1(CF).
+        CY/1 = $FLAGS:CARRY.
     }
 
     $CYCLES(8).
