@@ -62,22 +62,34 @@ RFFF/1.0?RSS/1.0
 ;   and the low 2 bits refer to the status character. The other parts of the
 ;   address (i.e. chip and register) have been sent in advance by the SRC bus.
 ;
-; - IO/1
+; - IO_x/1 / OUT_x/1 / IN_x/1
 ;
-;   This bus is used by the individual ROM, RAM and I/O chips. A 2-bit address
-;   is used to represent the pin (i.e. the local port address) if a ROM or RAM
-;   chip is used. If one I/O chip or even a cascade of I/O chips is used, the
-;   address may consist of more bits.
+;   This buses represent by the individual I/O pins (i.e. I/O, input or output
+;   lines) of ROM, RAM and I/O chips. No address is used.
 ;
 ; For further documentation of the MCS-4, including a descripton of its actual
 ; bus concept, see /doc/MCS-4.txt//.
 
 
-ROM "Intel 4001 256 x 8 bit ROM chip" (ROM/8, SRC, ROM_PORT/4, IO/1)
+;------------------------------------------------------------------------------
+;
+;  4001 ROM chip
+;
+;------------------------------------------------------------------------------
 
+
+ROM "Intel 4001 256 x 8 bit ROM chip"
+(
+    ; buses:
+
+    ROM/8,                          ; fetch bus
+    SRC,                            ; address transmission bus
+    ROM_PORT/4,                     ; ROM port read/write bus
+    IO_0/1, IO_1/1, IO_2/1, IO_3/1  ; I/O lines of ROM chip
+)
     ; default path to ROM file:
 
-    ROM_FILE = "./MCS-4.ROM"
+    ROM_FILE = "./MCS-4.ROM",
 
     ; I/O pin configuration:
     ; - mode value 0 represents an output line (0 is sent on read)
@@ -86,7 +98,10 @@ ROM "Intel 4001 256 x 8 bit ROM chip" (ROM/8, SRC, ROM_PORT/4, IO/1)
     ; This component translates PORT/4 reads and writes to multiple IO/1
     ; reads and writes.
 
-    IO_0_MODE = 0, IO_1_MODE = 0, IO_2_MODE = 0, IO_3_MODE = 0
+    IO_0_MODE = 0 ("out line / in 0", "out line / in 1", "in line"),
+    IO_1_MODE = 0 ("out line / in 0", "out line / in 1", "in line"),
+    IO_2_MODE = 0 ("out line / in 0", "out line / in 1", "in line"),
+    IO_3_MODE = 0 ("out line / in 0", "out line / in 1", "in line")
 {
     CONST ROM_MEM/8(256) = ROM_FILE[$INSTANCE * 256].
     VAR SRC_PORT/1.
@@ -116,22 +131,22 @@ ROM_PORT READ:
     {
         ROM_PORT/4 = 0.
 
-        IF ((IO_0_MODE == 1) || ((IO_0_MODE != 0) && (IO/1(0) != 0)))
+        IF ((IO_0_MODE == 1) || ((IO_0_MODE > 1) && (IO_0/1 != 0)))
         {
             ROM_PORT/4 |= 0x1.
         }
 
-        IF ((IO_1_MODE == 1) || ((IO_1_MODE != 0) && (IO/1(1) != 0)))
+        IF ((IO_1_MODE == 1) || ((IO_1_MODE > 1) && (IO_1/1 != 0)))
         {
             ROM_PORT/4 |= 0x2.
         }
 
-        IF ((IO_2_MODE == 1) || ((IO_2_MODE != 0) && (IO/1(2) != 0)))
+        IF ((IO_2_MODE == 1) || ((IO_2_MODE > 1) && (IO_2/1 != 0)))
         {
             ROM_PORT/4 |= 0x4.
         }
 
-        IF ((IO_3_MODE == 1) || ((IO_3_MODE != 0) && (IO/1(3) != 0)))
+        IF ((IO_3_MODE == 1) || ((IO_3_MODE > 1) && (IO_3/1 != 0)))
         {
             ROM_PORT/4 |= 0x8.
         }
@@ -143,28 +158,47 @@ ROM_PORT WRITE:
     {
         IF (IO_0_MODE > 1)
         {
-            IO/1(0) = ROM_PORT/4.
+            IO_0/1 = ROM_PORT/4.
         }
 
         IF (IO_1_MODE > 1)
         {
-            IO/1(1) = ROM_PORT/4 >> 1.
+            IO_1/1 = ROM_PORT/4 >> 1.
         }
 
         IF (IO_2_MODE > 1)
         {
-            IO/1(2) = ROM_PORT/4 >> 2.
+            IO_2/1 = ROM_PORT/4 >> 2.
         }
 
         IF (IO_3_MODE > 1)
         {
-            IO/1(3) = ROM_PORT/4 >> 3.
+            IO_3/1 = ROM_PORT/4 >> 3.
         }
     }
 }
 
 
-RAM "Intel 4002 4 x 320 bit RAM bank" (SRC, MEM/4, STAT/4, RAM_PORT/4, OUT/1)
+;------------------------------------------------------------------------------
+;
+;  4002 RAM bank (consists of 4 4002 chips)
+;
+;------------------------------------------------------------------------------
+
+
+RAM "Intel 4002 4 x 320 bit RAM bank"
+(
+    ; buses:
+
+    SRC,                                         ; address transmission bus
+    MEM/4,                                       ; main memory character bus
+    STAT/4,                                      ; status character bus
+    RAM_PORT/4,                                  ; RAM port write bus
+    OUT_0_0/1, OUT_0_1/1, OUT_0_2/1, OUT_0_3/1,  ; output lines of RAM chip 0
+    OUT_1_0/1, OUT_1_1/1, OUT_1_2/1, OUT_1_3/1,  ; output lines of RAM chip 1
+    OUT_2_0/1, OUT_2_1/1, OUT_2_2/1, OUT_2_3/1,  ; output lines of RAM chip 2
+    OUT_3_0/1, OUT_3_1/1, OUT_3_2/1, OUT_3_3/1   ; output lines of RAM chip 3
+)
 {
     VAR CHIP(4)
     {
@@ -201,15 +235,62 @@ STAT WRITE =UINT/3($INSTANCE)xxxxxxnn:
 
 RAM_PORT WRITE =UINT/3($INSTANCE)xxxxxxxx:
 
-    OUT/1(ADDR:CHIP << 2) = RAM_PORT/4.
-    OUT/1((ADDR:CHIP << 2) + 1) = RAM_PORT/4 >> 1.
-    OUT/1((ADDR:CHIP << 2) + 2) = RAM_PORT/4 >> 2.
-    OUT/1((ADDR:CHIP << 2) + 3) = RAM_PORT/4 >> 3.
+    IF (ADDR:CHIP <= 1)
+    {
+        IF (ADDR:CHIP == 0)
+        {
+            OUT_0_0/1 = RAM_PORT/4.
+            OUT_0_1/1 = RAM_PORT/4 >> 1.
+            OUT_0_2/1 = RAM_PORT/4 >> 2.
+            OUT_0_3/1 = RAM_PORT/4 >> 3.
+        }
+        ELSE
+        {
+            OUT_1_0/1 = RAM_PORT/4.
+            OUT_1_1/1 = RAM_PORT/4 >> 1.
+            OUT_1_2/1 = RAM_PORT/4 >> 2.
+            OUT_1_3/1 = RAM_PORT/4 >> 3.
+        }
+    }
+    ELSE
+    {
+        IF (ADDR:CHIP == 2)
+        {
+            OUT_2_0/1 = RAM_PORT/4.
+            OUT_2_1/1 = RAM_PORT/4 >> 1.
+            OUT_2_2/1 = RAM_PORT/4 >> 2.
+            OUT_2_3/1 = RAM_PORT/4 >> 3.
+        }
+        ELSE
+        {
+            OUT_3_0/1 = RAM_PORT/4.
+            OUT_3_1/1 = RAM_PORT/4 >> 1.
+            OUT_3_2/1 = RAM_PORT/4 >> 2.
+            OUT_3_3/1 = RAM_PORT/4 >> 3.
+        }
+    }
 }
 
 
-CPU "Intel 4004 CPU" (ROM/8, SRC, ROM_PORT/4, RAM_PORT/4, MEM/4, STAT/4, TEST/1)
+;------------------------------------------------------------------------------
+;
+;  4004 CPU
+;
+;------------------------------------------------------------------------------
 
+
+CPU "Intel 4004 CPU"
+(
+    ; buses:
+
+    ROM/8,       ; fetch bus
+    SRC,         ; address transmission bus
+    ROM_PORT/4,  ; ROM port read/write bus
+    RAM_PORT/4,  ; RAM port write bus
+    MEM/4,       ; main memory character bus
+    STAT/4,      ; status character bus
+    TEST/1       ; test input line of CPU chip
+)
     ; default clock rate is 740 kHz (1.35 microseconds per cycle):
 
     CLOCK_RATE = 740

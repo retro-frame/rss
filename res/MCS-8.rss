@@ -71,7 +71,7 @@ OPCODE 00rrr000:
 
         REG/8(UINT/3(r)) += 1.
 
-        F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, ?).
+        F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, -).
 
         $CYCLES(10).
     }
@@ -96,7 +96,7 @@ OPCODE 00rrr001:
 
         REG/8(UINT/3(r)) += 1.
 
-        F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, ?).
+        F/4($FLAGS:PARITY, $FLAGS:SIGN, $FLAGS:ZERO, -).
 
         $CYCLES(10).
     }
@@ -112,7 +112,7 @@ OPCODE 00000010:
 
     REG/8(A) <<<= 1.
 
-    F/4(?, ?, ?, REG/8(A) & 1).
+    F/4(-, -, -, REG/8(A) & 1).
 
     $CYCLES(10).
 
@@ -268,7 +268,7 @@ OPCODE 00001010:
 
     ; RRC (rotate right):
 
-    F/4(?, ?, ?, REG/8(A) & 1).
+    F/4(-, -, -, REG/8(A) & 1).
 
     REG/8(A) >>>= 1.
 

@@ -1,0 +1,347 @@
+RFFF/1.0?RSS/1.0
+
+;------------------------------------------------------------------------------
+;
+;  RETRO-FRAME TRS-80 RETRO SYSTEM SPECIFICATION
+;
+;  Copyright (c) 2026 Ingo Boehmer
+;
+;  Repository:  <http://source.retro-frame.net/rss>
+;  File:        /res/TRS-80.rss//
+;  Compliance:  Retro-Frame 1.0
+;  License:     MIT
+;
+;------------------------------------------------------------------------------
+
+
+IMPORT "./Z80.rss".  ; include Z80 CPU specification
+
+
+;------------------------------------------------------------------------------
+;
+;  TRS-80 Model I Level I generic 4K ROM
+;  (ROM contents is read from file)
+;
+;------------------------------------------------------------------------------
+
+
+ROM "TRS-80 Model I Level I ROM"
+(
+    MEM/8  ; data bus
+)  
+    ROM_FILE = "./TRS80L1.ROM"  ; default path to ROM file
+{
+    CONST DATA/8(0x1000) = ROM_FILE.
+
+MEM READ 0000nnnnnnnnnnnn:
+
+    MEM/8 = DATA/8(UINT/16(n)).
+}
+
+
+;------------------------------------------------------------------------------
+;
+;  TRS-80 Model I generic 4K / 8K / 16K RAM variants
+;  (16K RAM may have up to 3 instances to support 16K, 32K and 48K)
+;
+;------------------------------------------------------------------------------
+
+
+RAM "TRS-80 Model I 4K RAM"
+(
+    MEM/8  ; data bus
+)
+{
+    VAR DATA/8(0x1000).
+
+RESET:
+
+    $CLEAR.  ; clear RAM
+
+MEM READ 0100nnnnnnnnnnnn:
+
+    MEM/8 = DATA/8(UINT/16(n)).
+
+MEM WRITE 0100nnnnnnnnnnnn:
+
+    DATA/8(UINT/16(n)) = MEM/8.
+}
+
+
+RAM "TRS-80 Model I 8K RAM"
+(
+    MEM/8  ; data bus
+)
+{
+    VAR DATA/8(0x2000).
+
+RESET:
+
+    $CLEAR.  ; clear RAM
+
+MEM READ 010nnnnnnnnnnnnn:
+
+    MEM/8 = DATA/8(UINT/16(n)).
+
+MEM WRITE 010nnnnnnnnnnnnn:
+
+    DATA/8(UINT/16(n)) = MEM/8.
+}
+
+
+RAM "TRS-80 Model I 16K RAM"
+(
+    MEM/8  ; data bus
+)
+{
+    VAR DATA/8(0x4000).
+
+RESET:
+
+    $CLEAR.  ; clear RAM
+
+MEM READ =UINT/2($INSTANCE + 1)nnnnnnnnnnnnnn:
+
+    MEM/8 = DATA/8(UINT/16(n)).
+
+MEM WRITE =UINT/2($INSTANCE + 1)nnnnnnnnnnnnnn:
+
+    DATA/8(UINT/16(n)) = MEM/8.
+}
+
+
+;------------------------------------------------------------------------------
+;
+;  TRS-80 Model I memory-mapped keyboard with 53 keys
+;
+;------------------------------------------------------------------------------
+
+
+KEYBOARD "TRS-80 Model I Keyboard (53 Keys)"
+(
+    MEM/8  ; data bus
+)
+{
+    ; TRS-80 Model I polls for keys so we have to keep track of the key states:
+
+    VAR KEY_STATE/8(8).
+
+    ; key specification:
+
+    $KEY(0x00, -, "@", 0x0040).
+    $KEY(0x01, -, "A", 0x0041, 0x0061).
+    $KEY(0x02, -, "B", 0x0042, 0x0062).
+    $KEY(0x03, -, "C", 0x0043, 0x0063).
+    $KEY(0x04, -, "D", 0x0044, 0x0064).
+    $KEY(0x05, -, "E", 0x0045, 0x0065).
+    $KEY(0x06, -, "F", 0x0046, 0x0066).
+    $KEY(0x07, -, "G", 0x0047, 0x0067).
+    $KEY(0x10, -, "H", 0x0048, 0x0068).
+    $KEY(0x11, -, "I", 0x0049, 0x0069).
+    $KEY(0x12, -, "J", 0x004A, 0x006A).
+    $KEY(0x13, -, "K", 0x004B, 0x006B).
+    $KEY(0x14, -, "L", 0x004C, 0x006C).
+    $KEY(0x15, -, "M", 0x004D, 0x006D).
+    $KEY(0x16, -, "N", 0x004E, 0x006E).
+    $KEY(0x17, -, "O", 0x004F, 0x006F).
+    $KEY(0x20, -, "P", 0x0050, 0x0070).
+    $KEY(0x21, -, "Q", 0x0051, 0x0071).
+    $KEY(0x22, -, "R", 0x0052, 0x0072).
+    $KEY(0x23, -, "S", 0x0053, 0x0073).
+    $KEY(0x24, -, "T", 0x0054, 0x0074).
+    $KEY(0x25, -, "U", 0x0055, 0x0075).
+    $KEY(0x26, -, "V", 0x0056, 0x0076).
+    $KEY(0x27, -, "W", 0x0057, 0x0077).
+    $KEY(0x30, -, "X", 0x0058, 0x0078).
+    $KEY(0x31, -, "Y", 0x0059, 0x0079).
+    $KEY(0x32, -, "Z", 0x005A, 0x007A).
+
+    $KEY(0x40, -, "0", 0x0030, SHIFT(-)).
+    $KEY(0x41, -, "1", 0x0031, SHIFT("!", 0x0021)).
+    $KEY(0x42, -, "2", 0x0032, SHIFT("\"", 0x0022)).
+    $KEY(0x43, -, "3", 0x0033, SHIFT("#", 0x0023)).
+    $KEY(0x44, -, "4", 0x0034, SHIFT("$", 0x0024)).
+    $KEY(0x45, -, "5", 0x0035, SHIFT("%", 0x0025)).
+    $KEY(0x46, -, "6", 0x0036, SHIFT("&", 0x0026)).
+    $KEY(0x47, -, "7", 0x0037, SHIFT("\'", 0x0027)).
+    $KEY(0x50, -, "8", 0x0038, SHIFT("(", 0x0028)).
+    $KEY(0x51, -, "9", 0x0039, SHIFT(")", 0x0029)).
+    $KEY(0x52, -, ":", 0x003A, SHIFT("*", 0x002A)).
+    $KEY(0x53, -, ";", 0x003B, SHIFT("+", 0x002B)).
+    $KEY(0x54, -, ",", 0x002C, SHIFT("<", 0x003C)).
+    $KEY(0x55, -, "-", 0x002D, SHIFT("=", 0x003D)).
+    $KEY(0x56, -, ".", 0x002E, SHIFT(">", 0x003E)).
+    $KEY(0x57, -, "/", 0x002F, SHIFT("?", 0x003F)).
+
+    $KEY(0x60, -, "ENTER", ENTER, RETURN).
+    $KEY(0x61, -, "CLEAR", CLEAR, DELETE).
+    $KEY(0x62, -, "BREAK", BREAK, ESCAPE).
+    $KEY(0x63, -, ARROW_UP, ARROW_UP).
+    $KEY(0x64, -, ARROW_DOWN, ARROW_DOWN).
+    $KEY(0x65, -, ARROW_LEFT, ARROW_LEFT, BACKSPACE).
+    $KEY(0x66, -, ARROW_RIGHT, ARROW_RIGHT).
+    $KEY(0x67, -, SPACE, SPACE).
+
+    $KEY(0x70, HOLD, "SHIFT", SHIFT).
+
+    ; keyboard layout:
+
+    $KEY_LAYOUT(
+        "  +---+---+---+---+---+---+---+---+---+---+---+---+---+",
+        "  | 41| 42| 43| 44| 45| 46| 47| 50| 51| 40| 52| 55| 62|",
+        "+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+",
+        "| 63| 21| 27| 05| 22| 24| 31| 25| 11| 17| 20| 00| 65| 66|",
+        "+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+---+-+-+-+",
+        "  | 64| 01| 23| 04| 06| 07| 10| 12| 13| 14| 53|   60  | 61|",
+        "  +---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-----+-+-+",
+        "  |  70 | 32| 30| 03| 26| 02| 16| 15| 54| 56| 57|  70 |",
+        "  +-----+---+---+---+---+---+---+---+---+---+---+-----+",
+        "            |               67              |",
+        "            +-------------------------------+").
+
+RESET:
+
+    $CLEAR.  ; clear key states
+
+KEY PRESSED 0aaa0ddd:
+
+    ; aaa represents address line, ddd data line:
+
+    KEY_STATE(UINT/3(a)) |= 1 << UINT/3(d).
+
+KEY RELEASED 0aaa0ddd:
+
+    ; aaa represents address line, ddd data line:
+
+    KEY_STATE(UINT/3(a)) &= ~(1 << UINT/3(d)).
+
+MEM READ 11100000000001:
+
+    MEM/8 = KEY_STATE(0).  ; address 0x3801 == 14337
+
+MEM READ 11100000000010:
+
+    MEM/8 = KEY_STATE(1).  ; address 0x3802 == 14338
+
+MEM READ 11100000000100:
+
+    MEM/8 = KEY_STATE(2).  ; address 0x3804 == 14340
+
+MEM READ 11100000001000:
+
+    MEM/8 = KEY_STATE(3).  ; address 0x3808 == 14344
+
+MEM READ 11100000010000:
+
+    MEM/8 = KEY_STATE(4).  ; address 0x3810 == 14352
+
+MEM READ 11100000100000:
+
+    MEM/8 = KEY_STATE(5).  ; address 0x3820 == 14368
+
+MEM READ 11100001000000:
+
+    MEM/8 = KEY_STATE(6).  ; address 0x3840 == 14400
+
+MEM READ 11100010000000:
+
+    MEM/8 = KEY_STATE(7).  ; address 0x3880 == 14464
+}
+
+
+;------------------------------------------------------------------------------
+;
+;  TRS-80 Model I memory-mapped screen with 1KB video memory
+;
+;------------------------------------------------------------------------------
+
+
+SCREEN "TRS-80 Model I Video"
+(
+    MEM/8  ; data bus
+)
+{
+    ; video RAM:
+
+    VAR ROW(16)
+    {
+        COL/8(64)
+    }
+
+RESET:
+
+    $CLEAR.  ; clear video RAM
+
+    ; default text output is 64 x 16 characters white on black:
+
+    $SCREEN_TEXT(64, 16, 0xFFFFFF, 0x000000).
+
+    ; default graphics output is 128 x 48 pixels white on black:
+
+    $SCREEN_TEXT(128, 48, 0xFFFFFF, 0x000000).
+
+MEM READ 001111rrrrcccccc:
+
+    MEM/8 = ROW(UINT/4(r)):COL/8(UINT/6(c)).
+
+MEM WRITE 001111rrrrcccccc:
+
+    ROW(UINT/4(r)):COL/8(UINT/6(c)) = MEM/8.
+
+    IF (MEM/8 < 0x80)
+    {
+        ; text output (pixels, if present, will be overwritten):
+
+        $SCREEN_CHAR/8(UINT/4(r), UINT/6(c)) = MEM/8.
+    }
+    ELSE
+    {
+        ; graphics output (characters, if present, will be overwritten):
+
+        VAR X/8.
+        VAR Y/8.
+
+        X/8 = UINT/6(c) * 2.
+        Y/8 = UINT/4(r) * 3.
+
+        $SCREEN_PIXEL/1(X/8 + 0, Y/8 + 0) = MEM/8 & 0x01.
+        $SCREEN_PIXEL/1(X/8 + 1, Y/8 + 0) = (MEM/8 >> 1) & 0x01.
+        $SCREEN_PIXEL/1(X/8 + 0, Y/8 + 1) = (MEM/8 >> 2) & 0x01.
+        $SCREEN_PIXEL/1(X/8 + 1, Y/8 + 1) = (MEM/8 >> 3) & 0x01.
+        $SCREEN_PIXEL/1(X/8 + 0, Y/8 + 2) = (MEM/8 >> 4) & 0x01.
+        $SCREEN_PIXEL/1(X/8 + 1, Y/8 + 2) = (MEM/8 >> 5) & 0x01.
+    }
+}
+
+
+;------------------------------------------------------------------------------
+;
+;  TRS-80 Model I Level I generic system with selectable RAM
+;
+;------------------------------------------------------------------------------
+
+
+SYSTEM "TRS-80 Model I Level I"
+
+    RAM_SIZE = 0 ("4K", "8K", "16K)  ; default RAM size is 4K
+{
+    ROM "TRS-80 Model I Level I ROM" (MEM/8).
+
+    IF (RAM_SIZE == 0)
+    {
+        RAM "TRS-80 Model I 4K RAM" (MEM/8).
+    }
+    ELIF (RAM_SIZE == 1)
+    {
+        RAM "TRS-80 Model I 8K RAM" (MEM/8).
+    }
+    ELSE
+    {
+        RAM "TRS-80 Model I 16K RAM" (MEM/8).
+    }
+
+    CPU "Z80" (MEM/8, -, -).
+
+    KEYBOARD "TRS-80 Model I Keyboard (53 Keys)" (MEM/8).
+    SCREEN "TRS-80 Model I Video" (MEM/8).
+}
