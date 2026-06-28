@@ -173,20 +173,20 @@ KEYBOARD "TRS-80 Model I Keyboard (53 Keys)"
     $KEY(0x56, '.', MODIFIED('>', 0x70)).
     $KEY(0x57, '/', MODIFIED('?', 0x70)).
 
-    $KEY(0x60, ENTER, RETURN).
-    $KEY(0x61, CLEAR, DELETE).
-    $KEY(0x62, BREAK, ESCAPE).
-    $KEY(0x63, ARROW_UP).
-    $KEY(0x64, ARROW_DOWN).
-    $KEY(0x65, ARROW_LEFT, BACKSPACE).
-    $KEY(0x66, ARROW_RIGHT).
+    $KEY(0x60, RETURN, ENTER).
+    $KEY(0x61, CLEAR).
+    $KEY(0x62, CANCEL).
+    $KEY(0x63, CURSOR_UP, NUMPAD_UP).
+    $KEY(0x64, CURSOR_DOWN, NUMPAD_DOWN).
+    $KEY(0x65, CURSOR_LEFT, NUMPAD_LEFT, BACKSPACE).
+    $KEY(0x66, CURSOR_RIGHT, NUMPAD_RIGHT).
     $KEY(0x67, SPACE).
 
-    $KEY_MODIFIER(0x70, SHIFT).
+    $KEY_MODIFIER(0x70, L_SHIFT, R_SHIFT).
 
-    ; keyboard layout:
+    ; keyboard layout and graphics:
 
-    $KEY_LAYOUT("./TRS-80/M1_KBD.png",
+    $KEYBOARD_LAYOUT(
         "  +---+---+---+---+---+---+---+---+---+---+---+---+---+",
         "  | 41| 42| 43| 44| 45| 46| 47| 50| 51| 40| 52| 55| 62|",
         "+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+",
@@ -198,6 +198,9 @@ KEYBOARD "TRS-80 Model I Keyboard (53 Keys)"
         "  +-----+---+---+---+---+---+---+---+---+---+---+-----+",
         "            |               67              |",
         "            +-------------------------------+").
+
+    $KEYBOARD = "./TRS-80/M1_KBD0.png"
+    $KEYBOARD_PRESSED = "./TRS-80/M1_KBD1.png"
 
 RESET:
 
