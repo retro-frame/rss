@@ -87,9 +87,7 @@ ROM "Intel 4001 256 x 8 bit ROM chip"
     ROM_PORT/4,                     ; ROM port read/write bus
     IO_0/1, IO_1/1, IO_2/1, IO_3/1  ; I/O lines of ROM chip
 )
-    ; default path to ROM file:
-
-    ROM_FILE = "./MCS-4.ROM",
+    ROM_FILE = "",  /* must be set by system */
 
     ; I/O pin configuration:
     ; - mode value 0 represents an output line (0 is sent on read)
@@ -98,10 +96,10 @@ ROM "Intel 4001 256 x 8 bit ROM chip"
     ; This component translates PORT/4 reads and writes to multiple IO/1
     ; reads and writes.
 
-    IO_0_MODE = 0 ("out line / in 0", "out line / in 1", "in line"),
-    IO_1_MODE = 0 ("out line / in 0", "out line / in 1", "in line"),
-    IO_2_MODE = 0 ("out line / in 0", "out line / in 1", "in line"),
-    IO_3_MODE = 0 ("out line / in 0", "out line / in 1", "in line")
+    IO_0_MODE = 0,
+    IO_1_MODE = 0,
+    IO_2_MODE = 0,
+    IO_3_MODE = 0
 {
     CONST ROM_MEM/8(256) = ROM_FILE[$INSTANCE * 256].
     VAR SRC_PORT/1.

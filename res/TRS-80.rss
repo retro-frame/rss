@@ -29,7 +29,7 @@ ROM "TRS-80 Model I Level I ROM"
 (
     MEM/8  ; data bus
 )  
-    ROM_FILE = "./TRS-80/L1_ROM.bin"  ; default path to ROM file
+    ROM_FILE = ""  /* must be set by system */
 {
     CONST DATA/8(0x1000) = ROM_FILE.
 
@@ -186,7 +186,7 @@ KEYBOARD "TRS-80 Model I Keyboard (53 Keys)"
 
     ; keyboard layout and graphics:
 
-    $KEYBOARD_LAYOUT(
+    $KEYBOARD_MAP(
         "  +---+---+---+---+---+---+---+---+---+---+---+---+---+",
         "  | 41| 42| 43| 44| 45| 46| 47| 50| 51| 40| 52| 55| 62|",
         "+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+",
@@ -199,8 +199,9 @@ KEYBOARD "TRS-80 Model I Keyboard (53 Keys)"
         "            |               67              |",
         "            +-------------------------------+").
 
-    $KEYBOARD = "./TRS-80/M1_KBD0.png"
-    $KEYBOARD_PRESSED = "./TRS-80/M1_KBD1.png"
+    $KEYBOARD_IMAGE(
+        "./TRS-80/M1_KBD0.png",
+        "./TRS-80/M1_KBD1.png").
 
 RESET:
 
@@ -218,37 +219,47 @@ KEY RELEASED 0aaa0ddd:
 
     KEY_STATE(UINT/3(a)) &= ~(1 << UINT/3(d)).
 
-MEM READ 11100000000001:
+MEM READ 111000nnnnnnnn:
 
-    MEM/8 = KEY_STATE(0).  ; address 0x3801 == 14337
+    IF (UINT/8(n) & 0x01)
+    {
+        MEM/8 |= KEY_STATE(0).  ; address 0x3801 == 14337
+    }
 
-MEM READ 11100000000010:
+    IF (UINT/8(n) & 0x02)
+    {
+        MEM/8 |= KEY_STATE(1).  ; address 0x3802 == 14338
+    }
 
-    MEM/8 = KEY_STATE(1).  ; address 0x3802 == 14338
+    IF (UINT/8(n) & 0x04)
+    {
+        MEM/8 |= KEY_STATE(2).  ; address 0x3804 == 14340
+    }
 
-MEM READ 11100000000100:
+    IF (UINT/8(n) & 0x08)
+    {
+        MEM/8 |= KEY_STATE(3).  ; address 0x3808 == 14344
+    }
 
-    MEM/8 = KEY_STATE(2).  ; address 0x3804 == 14340
+    IF (UINT/8(n) & 0x10)
+    {
+        MEM/8 |= KEY_STATE(4).  ; address 0x3810 == 14352
+    }
 
-MEM READ 11100000001000:
+    IF (UINT/8(n) & 0x20)
+    {
+        MEM/8 |= KEY_STATE(5).  ; address 0x3820 == 14368
+    }
 
-    MEM/8 = KEY_STATE(3).  ; address 0x3808 == 14344
+    IF (UINT/8(n) & 0x40)
+    {
+        MEM/8 |= KEY_STATE(6).  ; address 0x3840 == 14400
+    }
 
-MEM READ 11100000010000:
-
-    MEM/8 = KEY_STATE(4).  ; address 0x3810 == 14352
-
-MEM READ 11100000100000:
-
-    MEM/8 = KEY_STATE(5).  ; address 0x3820 == 14368
-
-MEM READ 11100001000000:
-
-    MEM/8 = KEY_STATE(6).  ; address 0x3840 == 14400
-
-MEM READ 11100010000000:
-
-    MEM/8 = KEY_STATE(7).  ; address 0x3880 == 14464
+    IF (UINT/8(n) & 0x80)
+    {
+        MEM/8 |= KEY_STATE(7).  ; address 0x3880 == 14464
+    }
 }
 
 
@@ -326,21 +337,18 @@ MEM WRITE 001111rrrrcccccc:
 
 SYSTEM "TRS-80 Model I Level I"
 
-    RAM_SIZE = 0 ("4K", "8K", "16K)  ; default RAM size is 4K
-{
-    ROM "TRS-80 Model I Level I ROM" (MEM/8).
+    /* system paramters: */
 
-    IF (RAM_SIZE == 0)
+    RAM_SIZE = 0 ("4K", "8K", "16K),  ; default RAM size is 4K
+    ROM_FILE = "./TRS-80/L1_ROM.bin"  ; default path to ROM file
+{
+    ROM "TRS-80 Model I Level I ROM" (MEM/8) ROM_FILE.
+
+    SELECT (RAM_SIZE)
     {
-        RAM "TRS-80 Model I 4K RAM" (MEM/8).
-    }
-    ELIF (RAM_SIZE == 1)
-    {
-        RAM "TRS-80 Model I 8K RAM" (MEM/8).
-    }
-    ELSE
-    {
-        RAM "TRS-80 Model I 16K RAM" (MEM/8).
+    0:  RAM "TRS-80 Model I 4K RAM" (MEM/8).
+    1:  RAM "TRS-80 Model I 8K RAM" (MEM/8).
+    2:  RAM "TRS-80 Model I 16K RAM" (MEM/8).
     }
 
     CPU "Z80" (MEM/8, -, -).
