@@ -106,8 +106,8 @@ RSS files may be directly used by emulators.
 -------------------------------------------------------------------------------
 
 This document provides additional documentation of the Intel MCS-4 Micro
-Computer Set according to [MCS-4]. For the actual specification in RSS format,
-see /res/MCS-4.rss//.
+Computer Set according to [MCS-4 USERS MANUAL] and [MCS-4 ASM MANUAL]. For the
+actual specification in RSS format, see /res/MCS-4.rss//.
 
 Note that only the 4001, 4002, 4003 and 4004 are considered part of the MCS-4.
 Later support chips like 4008 or 4009 are not in the scope of this document.
@@ -123,8 +123,12 @@ Retro-Frame Common Documentation, see <http://source.retro-frame.net/common>.
 Retro-Frame Data Format Specifications, see
 <http://source.retro-frame.net/format>.
 
-[MCS-4]
-MCS-4(TM) MICRO COMPUTER SET - USERS MANUAL, Intel Corporation, REV 4, 1973.
+[MCS-4 ASM MANUAL]
+MCS(T.M.)-4 Assembly Language Programming Manual, PRELIMINARY EDITION, Intel
+Corporation, December 1973.
+
+[MCS-4 USERS MANUAL]
+MCS-4(T.M.) MICRO COMPUTER SET - USERS MANUAL, Intel Corporation, REV 4, 1973.
 
 [RETRO-FRAME]
 Retro-Frame homepage, see <http://source.retro-frame.net/>.
