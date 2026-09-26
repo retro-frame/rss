@@ -1,0 +1,89 @@
+RFFF/1.0?RSS/1.0
+
+;------------------------------------------------------------------------------
+;
+;  RETRO-FRAME RETRO SYSTEM UTILITY SPECIFICATIONS
+;
+;  Copyright (c) 2026 Ingo Boehmer
+;
+;  Repository:  <http://source.retro-frame.net/rss>
+;  File:        /res/lib/util.rss//
+;  Compliance:  Retro-Frame 1.1
+;  License:     MIT
+;
+;------------------------------------------------------------------------------
+
+
+DEVICE STDIO "7-bit ASCII standard input and output"
+
+` This device is assigned to a 7-bit bus which gets a single ASCII character
+` from stdin on read by a blocking call and puts a single ASCII character to
+` stdout on write.
+
+    STDIO/7
+{
+STDIO READ:
+
+    STDIO/7 = $STDIO_GETCHAR.  ; blocking call
+
+STDIO WRITE:
+
+    $STDIO_PUTCHAR = STDIO/7.
+}
+
+
+DEVICE BUS_PIN_MAPPER "bus/pin event mapper (up to 32 pins)"
+
+` This generic utility devices maps events on a bus with a 5-bit address to the
+` corresponding pin (address 00H is mapped to PIN_01, address 01H to PIN_02 and
+` so on) and vice versa.
+
+    BUS/0,
+    PIN_01/0, PIN_02/0, PIN_03/0, PIN_04/0,
+    PIN_05/0, PIN_06/0, PIN_07/0, PIN_08/0,
+    PIN_09/0, PIN_10/0, PIN_11/0, PIN_12/0,
+    PIN_13/0, PIN_14/0, PIN_15/0, PIN_16/0,
+    PIN_17/0, PIN_18/0, PIN_19/0, PIN_20/0,
+    PIN_21/0, PIN_22/0, PIN_23/0, PIN_24/0,
+    PIN_25/0, PIN_26/0, PIN_27/0, PIN_28/0,
+    PIN_29/0, PIN_30/0, PIN_31/0, PIN_32/0
+{
+BUS nn:
+
+    SELECT (UINT/2(n))
+    {
+    0x00:  PIN_01/0(0).    0x01:  PIN_02/0(0).
+    0x02:  PIN_03/0(0).    0x03:  PIN_04/0(0).
+    0x04:  PIN_05/0(0).    0x05:  PIN_06/0(0).
+    0x06:  PIN_07/0(0).    0x07:  PIN_08/0(0).
+    0x08:  PIN_09/0(0).    0x09:  PIN_10/0(0).
+    0x0A:  PIN_11/0(0).    0x0B:  PIN_12/0(0).
+    0x0C:  PIN_13/0(0).    0x0D:  PIN_14/0(0).
+    0x0E:  PIN_15/0(0).    0x0F:  PIN_16/0(0).
+    0x10:  PIN_17/0(0).    0x11:  PIN_18/0(0).
+    0x12:  PIN_19/0(0).    0x13:  PIN_20/0(0).
+    0x14:  PIN_21/0(0).    0x15:  PIN_22/0(0).
+    0x16:  PIN_23/0(0).    0x17:  PIN_24/0(0).
+    0x18:  PIN_25/0(0).    0x19:  PIN_26/0(0).
+    0x1A:  PIN_27/0(0).    0x1B:  PIN_28/0(0).
+    0x1C:  PIN_29/0(0).    0x1D:  PIN_30/0(0).
+    0x1E:  PIN_31/0(0).    0x1F:  PIN_32/0(0).
+    }
+
+PIN_01:  BUS/0(0x00).    PIN_02:  BUS/0(0x01).
+PIN_03:  BUS/0(0x02).    PIN_04:  BUS/0(0x03).
+PIN_05:  BUS/0(0x04).    PIN_06:  BUS/0(0x05).
+PIN_07:  BUS/0(0x06).    PIN_08:  BUS/0(0x07).
+PIN_09:  BUS/0(0x08).    PIN_10:  BUS/0(0x09).
+PIN_11:  BUS/0(0x0A).    PIN_12:  BUS/0(0x0B).
+PIN_13:  BUS/0(0x0C).    PIN_14:  BUS/0(0x0D).
+PIN_15:  BUS/0(0x0E).    PIN_16:  BUS/0(0x0F).
+PIN_17:  BUS/0(0x10).    PIN_18:  BUS/0(0x11).
+PIN_19:  BUS/0(0x12).    PIN_20:  BUS/0(0x13).
+PIN_21:  BUS/0(0x14).    PIN_22:  BUS/0(0x15).
+PIN_23:  BUS/0(0x16).    PIN_24:  BUS/0(0x17).
+PIN_25:  BUS/0(0x18).    PIN_26:  BUS/0(0x19).
+PIN_27:  BUS/0(0x1A).    PIN_28:  BUS/0(0x1B).
+PIN_29:  BUS/0(0x1C).    PIN_30:  BUS/0(0x1D).
+PIN_31:  BUS/0(0x1E).    PIN_32:  BUS/0(0x1F).
+}

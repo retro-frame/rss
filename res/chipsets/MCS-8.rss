@@ -7,18 +7,19 @@ RFFF/1.0?RSS/1.0
 ;  Copyright (c) 2026 Ingo Boehmer
 ;
 ;  Repository:  <http://source.retro-frame.net/rss>
-;  File:        /res/MCS-8.rss//
-;  Compliance:  Retro-Frame 1.0
+;  File:        /res/chipsets/MCS-8.rss//
+;  Compliance:  Retro-Frame 1.1
 ;  License:     MIT
 ;
 ;------------------------------------------------------------------------------
 
 
-CPU "Intel 8008 CPU" (MEM/8, PORT/8, INT/8)
+CPU INTEL_8008 "Intel MCS-8 8008 CPU"
 
-    ; default clock rate is 500 kHz (2 microseconds per cycle):
-
-    CLOCK_RATE = 500
+    MEM/8,            ; 8-bit memory bus
+    PORT/8,           ; 8-bit port bus
+    INT/8,            ; 8-bit interrupt request bus
+    CLOCK_RATE = 500  ; 500 kHz default clock rate (2 microseconds/cycle)
 {
     ; registers:
 

@@ -7,8 +7,8 @@ RFFF/1.0?RSS/1.0
 ;  Copyright (c) 2026 Ingo Boehmer
 ;
 ;  Repository:  <http://source.retro-frame.net/rss>
-;  File:        /res/MCS-4.rss//
-;  Compliance:  Retro-Frame 1.0
+;  File:        /res/chipsets/MCS-4.rss//
+;  Compliance:  Retro-Frame 1.1
 ;  License:     MIT
 ;
 ;------------------------------------------------------------------------------
@@ -26,7 +26,7 @@ RFFF/1.0?RSS/1.0
 ;   events from the CPU. A 12-bit address is used and each ROM shall recognize
 ;   itself by the high 4 bits. The low 8 bits represent the local byte address.
 ;
-; - SRC
+; - SRC/0
 ;
 ;   This bus is used by the CPU to transmit the address for subsequent reads or
 ;   writes to the ROM and RAM components as write events. This bus uses 11 bits
@@ -78,28 +78,31 @@ RFFF/1.0?RSS/1.0
 ;------------------------------------------------------------------------------
 
 
-ROM "Intel 4001 256 x 8 bit ROM chip (load image from file)"
-(
-    ; buses:
+ROM INTEL_4001 "Intel MCS-4 4001 256 x 8 bit ROM chip (load image from file)"
 
-    ROM/8,                          ; fetch bus
-    SRC,                            ; address transmission bus
-    ROM_PORT/4,                     ; ROM port read/write bus
-    IO_0/1, IO_1/1, IO_2/1, IO_3/1  ; I/O lines of ROM chip
-)
-    ROM_FILE = "",  /* must be set by system */
+    ROM_FILE = "",  ; must be set by caller
+    ROM/8,          ; 8-bit fetch bus
+    SRC/0,          ; address transmission event bus
+    ROM_PORT/4,     ; 4-bit ROM port read/write bus
 
-    ; I/O pin configuration:
+    ;  I/O lines of ROM chip with individual I/O pin configurations:
     ; - mode value 0 represents an output line (0 is sent on read)
     ; - mode value 1 represents an output line (1 is sent on read)
     ; - any other mode value represents an input line
     ; This component translates PORT/4 reads and writes to multiple IO/1
     ; reads and writes.
 
-    IO_0_MODE = 0,
-    IO_1_MODE = 0,
-    IO_2_MODE = 0,
-    IO_3_MODE = 0
+    IO_0/1, IO_0_MODE = 0
+        ("output line (0 on read)", "output line (1 on read)", "input line"),
+
+    IO_1/1, IO_1_MODE = 0
+        ("output line (0 on read)", "output line (1 on read)", "input line"),
+
+    IO_2/1, IO_2_MODE = 0
+        ("output line (0 on read)", "output line (1 on read)", "input line"),
+
+    IO_3/1, IO_3_MODE = 0
+        ("output line (0 on read)", "output line (1 on read)", "input line")
 {
     VAR SRC_PORT/1.
 
@@ -185,19 +188,19 @@ ROM_PORT WRITE:
 ;------------------------------------------------------------------------------
 
 
-RAM "Intel 4002 4 x 320 bit RAM bank"
-(
-    ; buses:
+RAM INTEL_4002 "Intel MCS-4 4002 4 x 320 bit RAM bank"
 
-    SRC,                                         ; address transmission bus
-    MEM/4,                                       ; main memory character bus
-    STAT/4,                                      ; status character bus
-    RAM_PORT/4,                                  ; RAM port write bus
+    SRC/0,       ; address transmission event bus
+    MEM/4,       ; 4-bit main memory character bus
+    STAT/4,      ; 4-bit status character bus
+    RAM_PORT/4,  ; 4-bit RAM port write bus
+
+    ;  Output lines of RAM chips (4 each):
+
     OUT_0_0/1, OUT_0_1/1, OUT_0_2/1, OUT_0_3/1,  ; output lines of RAM chip 0
     OUT_1_0/1, OUT_1_1/1, OUT_1_2/1, OUT_1_3/1,  ; output lines of RAM chip 1
     OUT_2_0/1, OUT_2_1/1, OUT_2_2/1, OUT_2_3/1,  ; output lines of RAM chip 2
     OUT_3_0/1, OUT_3_1/1, OUT_3_2/1, OUT_3_3/1   ; output lines of RAM chip 3
-)
 {
     VAR ADDR { CHIP/2, REGISTER/2, CHAR/4 }
 
@@ -278,21 +281,16 @@ RAM_PORT WRITE =UINT/3($INSTANCE)xxxxxxxx:
 ;------------------------------------------------------------------------------
 
 
-CPU "Intel 4004 CPU"
-(
-    ; buses:
+CPU INTEL_4004 "Intel MCS-4 4004 CPU"
 
-    ROM/8,       ; fetch bus
-    SRC,         ; address transmission bus
-    ROM_PORT/4,  ; ROM port read/write bus
-    RAM_PORT/4,  ; RAM port write bus
-    MEM/4,       ; main memory character bus
-    STAT/4,      ; status character bus
-    TEST/1       ; test input line of CPU chip
-)
-    ; default clock rate is 740 kHz (1.35 microseconds per cycle):
-
-    CLOCK_RATE = 740
+    ROM/8,            ; fetch bus
+    SRC/0,            ; address transmission bus
+    ROM_PORT/4,       ; ROM port read/write bus
+    RAM_PORT/4,       ; RAM port write bus
+    MEM/4,            ; main memory character bus
+    STAT/4,           ; status character bus
+    TEST/1,           ; test input line of CPU chip
+    CLOCK_RATE = 740  ; 740 kHz default clock rate (1.35 microseconds/cycle)
 {
     ; registers:
 
@@ -422,7 +420,7 @@ OPCODE 0010rrr1:
     $OPCODE_COMMENT("send register control").
     $OPCODE_ASM("SRC ", P(UINT/3(r))).
 
-    SRC(RAM_BANK << 8 | REG/8(UINT/3(r))).
+    SRC/0(RAM_BANK << 8 | REG/8(UINT/3(r))).
 
     $OPCODE_CYCLES(8).
 

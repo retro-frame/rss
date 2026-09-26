@@ -8,34 +8,36 @@ RFFF/1.0?RSS/1.0
 ;
 ;  Repository:  <http://source.retro-frame.net/rss>
 ;  File:        /res/TRS-80.rss//
-;  Compliance:  Retro-Frame 1.0
+;  Compliance:  Retro-Frame 1.1
 ;  License:     MIT
 ;
 ;------------------------------------------------------------------------------
 
 
-IMPORT ":Z80.rss".  ; include Z80 CPU specification
+IMPORT ":chipsets/Z80.rss".  ; include Z80 CPU specification
 
 
 ;------------------------------------------------------------------------------
 ;
-;  TRS-80 Model I Level I generic 4K ROM
+;  TRS-80 Model I generic 4K ROM
 ;  (ROM contents is read from file)
 ;
 ;------------------------------------------------------------------------------
 
 
-ROM "TRS-80 Model I Level I ROM"
-(
-    MEM/8  ; data bus
-)  
-    ROM_FILE = ""  /* must be set by system */
+ROM TRS80_M1_4K "TRS-80 Model I 4K ROM (used for Level I)"
+
+` This ROM component loads up to 4K binary data from ROM_FILE which is mapped
+` read-only to address 0000H-0FFFH on the data bus.
+
+    MEM/8,         ; 8-bit data bus
+    ROM_FILE = ""  ; path should be provided by caller
 {
-    CONST DATA/8(0x1000) = $ROM_IMAGE(ROM_FILE).
+    CONST ROM/8(0x1000) = $ROM_IMAGE(ROM_FILE).
 
 MEM READ 0000nnnnnnnnnnnn:
 
-    MEM/8 = DATA/8(UINT/16(n)).
+    MEM/8 = ROM/8(UINT/16(n)).
 }
 
 
@@ -47,12 +49,14 @@ MEM READ 0000nnnnnnnnnnnn:
 ;------------------------------------------------------------------------------
 
 
-RAM "TRS-80 Model I 4K RAM"
-(
-    MEM/8  ; data bus
-)
+RAM TRS80_M1_4K "TRS-80 Model I 4K RAM"
+
+` This 4K RAM component is cleared on reset and maps the memory to address
+` 4000H-4FFFH on the data bus.
+
+    MEM/8  ; 8-bit data bus
 {
-    VAR DATA/8(0x1000).
+    VAR RAM/8(0x1000).
 
 RESET:
 
@@ -60,20 +64,22 @@ RESET:
 
 MEM READ 0100nnnnnnnnnnnn:
 
-    MEM/8 = DATA/8(UINT/16(n)).
+    MEM/8 = RAM/8(UINT/16(n)).
 
 MEM WRITE 0100nnnnnnnnnnnn:
 
-    DATA/8(UINT/16(n)) = MEM/8.
+    RAM/8(UINT/16(n)) = MEM/8.
 }
 
 
-RAM "TRS-80 Model I 8K RAM"
-(
-    MEM/8  ; data bus
-)
+RAM TRS80_M1_8K "TRS-80 Model I 8K RAM"
+
+` This 8K RAM component is cleared on reset and maps the memory to address
+` 4000H-5FFFH on the data bus.
+
+    MEM/8  ; 8-bit data bus
 {
-    VAR DATA/8(0x2000).
+    VAR RAM/8(0x2000).
 
 RESET:
 
@@ -81,18 +87,22 @@ RESET:
 
 MEM READ 010nnnnnnnnnnnnn:
 
-    MEM/8 = DATA/8(UINT/16(n)).
+    MEM/8 = RAM/8(UINT/16(n)).
 
 MEM WRITE 010nnnnnnnnnnnnn:
 
-    DATA/8(UINT/16(n)) = MEM/8.
+    RAM/8(UINT/16(n)) = MEM/8.
 }
 
 
-RAM "TRS-80 Model I 16K RAM"
-(
-    MEM/8  ; data bus
-)
+RAM TRS80_M1_16K "TRS-80 Model I 16K RAM (up to 3 instances)"
+
+` This 16K RAM component is cleared on reset and may have up to 3 instances.
+` The memory of the first instance is mapped to addresses 4000H-7FFFH, of the
+` second instance to addresses 8000H-BFFFH and of the third instance to
+` addresses C000H-FFFFH on the data bus.
+
+    MEM/8  ; 8-bit data bus
 {
     VAR DATA/8(0x4000).
 
@@ -117,10 +127,15 @@ MEM WRITE =UINT/2($INSTANCE + 1)nnnnnnnnnnnnnn:
 ;------------------------------------------------------------------------------
 
 
-KEYBOARD "TRS-80 Model I Keyboard (53 Keys)"
-(
-    MEM/8  ; data bus
-)
+KEYBOARD TRS80_M1_53 "TRS-80 Model I Keyboard (53 Keys)"
+
+` This component is a standard TRS-80 Model I keyboard with 53 keys. The code
+` of a pressed key is mapped to addresses 3800H-38FFH on the data bus. The
+` keyboard bitmaps with released respective pressed key states are read from
+` the files "TRS-80/M1_KBD0.bmp" respective "TRS-80/M1_KBD0.bmp" relative to
+` the directory of this file.
+
+    MEM/8  ; 8-bit data bus
 {
     ; TRS-80 Model I polls for keys so we have to keep track of the key states:
 
@@ -187,8 +202,8 @@ KEYBOARD "TRS-80 Model I Keyboard (53 Keys)"
     ; keyboard image and map:
 
     $KEYBOARD_IMAGE(
-        ":TRS-80/M1_KBD0.bmp",
-        ":TRS-80/M1_KBD1.bmp").
+        "TRS-80:M1_KBD0.bmp",
+        "TRS-80:M1_KBD1.bmp").
 
     $KEYBOARD_MAP(
         "  +---+---+---+---+---+---+---+---+---+---+---+---+---+",
@@ -272,15 +287,15 @@ MEM READ 111000nnnnnnnn:
 ;------------------------------------------------------------------------------
 
 
-SCREEN "TRS-80 Model I Video"
+SCREEN TRS80_M1 "TRS-80 Model I Video"
 (
     MEM/8  ; data bus
 )
 {
-    $CHAR_IMAGE(0x00, 0x1F, ":TRS-80/M1_CHR00.bmp").
-    $CHAR_IMAGE(0x20, 0x5F, ":TRS-80/M1_CHR20.bmp").
-    $CHAR_IMAGE(0x60, 0x7F, ":TRS-80/M1_CHR60.bmp").
-    $CHAR_IMAGE(0x80, 0xBF, ":TRS-80/M1_CHR80.bmp").
+    $CHAR_IMAGE(0x00, 0x1F, "TRS-80:M1_CHR00.bmp").
+    $CHAR_IMAGE(0x20, 0x5F, "TRS-80:M1_CHR20.bmp").
+    $CHAR_IMAGE(0x60, 0x7F, "TRS-80:M1_CHR60.bmp").
+    $CHAR_IMAGE(0x80, 0xBF, "TRS-80:M1_CHR80.bmp").
 
 RESET:
 
@@ -307,24 +322,24 @@ MEM WRITE 001111rrrrcccccc:
 ;------------------------------------------------------------------------------
 
 
-SYSTEM "TRS-80 Model I Level I"
-
-    /* system paramters: */
-
+SYSTEM TRS80_M1_L1 "TRS-80 Model I Level I generic system with selectable RAM"
+(
+    MEM/8,                            ; TRS-80 uses a single 8-bit memory bus
     RAM_SIZE = 0 ("4K", "8K", "16K),  ; default RAM size is 4K
-    ROM_FILE = ":TRS-80/L1_ROM.bin"   ; default path to ROM file
+    ROM_FILE = "TRS-80:M1L1_ROM.bin"  ; default path to ROM file
+)
 {
-    ROM "TRS-80 Model I Level I ROM" (MEM/8) ROM_FILE.
+    ROM TRS80_M1_4K (MEM/8, ROM_FILE).
 
     SELECT (RAM_SIZE)
     {
-    0:  RAM "TRS-80 Model I 4K RAM" (MEM/8).
-    1:  RAM "TRS-80 Model I 8K RAM" (MEM/8).
-    2:  RAM "TRS-80 Model I 16K RAM" (MEM/8).
+    0:  RAM TRS80_M1_4K (MEM/8).
+    1:  RAM TRS80_M1_8K (MEM/8).
+    2:  RAM TRS80_M1_16K (MEM/8).
     }
 
-    CPU "Z80" (MEM/8, -, -).
+    CPU Z80 (MEM/8).
 
-    KEYBOARD "TRS-80 Model I Keyboard (53 Keys)" (MEM/8).
-    SCREEN "TRS-80 Model I Video" (MEM/8).
+    KEYBOARD TRS80_M1_53 (MEM/8).
+    SCREEN TRS80_M1 (MEM/8).
 }
