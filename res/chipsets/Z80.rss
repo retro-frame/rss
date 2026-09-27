@@ -16,55 +16,91 @@ RFFF/1.0?RSS/1.0
 
 CPU Z80 "Zilog Z80 CPU"
 
-    MEM/8,   ; 8-bit memory bus
-    PORT/8,  ; 8-bit port bus
-    INT,     ; interrupt request event bus
-    NMI      ; non-maskable interrupt request event bus
+    MEM/8,             ; 8-bit memory bus
+    PORT/8,            ; 8-bit port bus
+    INT,               ; interrupt request event bus
+    NMI,               ; non-maskable interrupt request event bus
+    CLOCK_RATE = 4000  ; 4 MHz default clock rate (0.25 microseconds/cycle)
 {
     ; 8-bit registers:
 
-    VAR REG/8(25)
+    VAR REG/8(24)
         A', F', B', C', D', E', H', L',  ; shadow registers
         A,  F,  B,  C,  D,  E,  H,  L,   ; main registers
-        I = 22, R.                       ; special registers
-
+        I = 22, R.                       ; special-purpose registers
+    
     ; provide 16-bit access to REG/8:
 
-    GET REG/16(x)
+    READ REG/16(x)
         AF', BC', DE', HL',  ; shadow registers
         AF,  BC,  DE,  HL,   ; main registers
-        SP,  IX,  IY         ; stack pointer and index registers
+        SP,  IX,  IY,  IR    ; special-purpose registers
     {
-        REG/16 = REG/8(x * 2) | REG/8(x * 2 + 1) << 8.
+        REG/16 = UINT/16(REG/8(x * 2), REG/8(x * 2 + 1)).
     }
 
-    PUT REG/16(x)
+    WRITE REG/16(x)
         AF', BC', DE', HL',  ; shadow registers
         AF,  BC,  DE,  HL,   ; main registers
-        SP,  IX,  IY         ; stack pointer and index registers
+        SP,  IX,  IY,  IR    ; special-purpose registers
     {
-        REG/8(x * 2) = REG/16.
-        REG/8(x * 2 + 1) = REG/16 >> 8.
+        UINT/16(REG/8(x * 2), REG/8(x * 2 + 1)) = REG/16.
     }
 
     ; provide 16-bit little endian data access to MEM/8:
 
-    GET MEM/16(x)
+    READ MEM/16(x)
     {
-        MEM/16 = MEM/8(x) | MEM/8(x + 1) << 8.
+        MEM/16 = UINT/16(MEM/8(x), MEM/8(x + 1)).
     }
 
-    PUT MEM/16(x)
+    WRITE MEM/16(x)
     {
-        MEM/8(x) = MEM/16.
-        MEM/8(x + 1) = MEM/16 >> 8.
+        UINT/16(MEM/8(x), MEM/8(x + 1)) = MEM/16.
     }
 
-    ; memory refresh register R increment routine:
+    ; prefix and general opcode support:
 
-    DEF INC_R
+    VAR PREFIX/2.  ; 0 = HL, 2 = IX, 3 = IY
+
+    ; general macros:
+
+    MACRO OPCODE_ENTER
     {
-        REG/8(R) = (REG/8(R) & 80H) | ((REG/8(R) + 1) & 7FH).
+        ; instruction fetch processing for 1-byte opcodes and prefixes (always
+        ; called before $OPCODE_ASM so R will already be incremented on break):
+
+        UINT/7(REG/8(R)) += 1.  ; increment low 7 bits of register R
+    }
+
+    MACRO OPCODE_ENTER_2
+    {
+        ; alternate instruction fetch processing for 2-byte opcodes (always
+        ; called before $OPCODE_ASM so R will already be incremented on break):
+
+        IF (PREFIX/2 == 0)
+        {
+            UINT/7(REG/8(R)) += 1.  ; increment low 7 bits of register R
+        }
+    }
+
+    MACRO OPCODE_LEAVE
+    {
+        PREFIX/2 = 0.  ; reset prefix, if given
+    }
+
+    ; get 16-bit register offset from x (0 = BC, 1 = DE, 2 = HL/IX/IY, 3 = SP):
+
+    READ RegOfs16(x)
+    {
+        IF (x != 0x2)
+        {
+            REG_OFS_16 = x.
+        }
+        ELSE
+        {
+            REG_OFS_16 = x + PREFIX/2.
+        }
     }
 
 RESET:
@@ -75,33 +111,100 @@ RESET:
     REG/16(SP) = 0xFFFF.
     REG/16(IR) = 0x0000.
 
-    $OPCODE_FETCH(MEM/8(16)).  ; 16-bit program counter, fetch from bus MEM/8
+    $OPCODE_FETCH(MEM/8, 16).  ; 16-bit program counter, fetch from bus MEM/8
 
-OPCODE:
+OPCODE 11011101:
 
-    REG/8(R) += 1.  ; increment R register (high bit is stored separately)
+    ; DD prefix (use IX):
+
+    OPCODE_ENTER.
+    PREFIX/2 = 2.       ; set prefix state to IX
+    $OPCODE_CYCLES(4).
+    $OPCODE_PREFIX.     ; expect actual instruction following (no OPCODE_LEAVE)
+
+OPCODE 11111101:
+
+    ; FD prefix (use IY):
+
+    OPCODE_ENTER.
+    PREFIX/2 = 3.       ; set prefix state to IY
+    $OPCODE_CYCLES(4).
+    $OPCODE_PREFIX.     ; expect actual instruction following (no OPCODE_LEAVE)
 
 OPCODE 00000000:
 
-    ; NOP:
+    ; NOP
 
-    .
+    OPCODE_ENTER.
+    $OPCODE_COMMENT("no operation").
+    $OPCODE_ASM("NOP").
+    $OPCODE_CYCLES(4).
+    OPCODE_LEAVE.
 
 OPCODE 00rr0001 llllllll hhhhhhhh:
 
-    ; LD BC/DE/HL/SP,n:
+    ; LD BC/DE/HL/IX/IY/SP,nn
 
-    REG/16(BC + UINT/16(r)) = UINT/16(l) | UINT/16(h) << 8.
+    OPCODE_ENTER.
+    $OPCODE_COMMENT("16-bit register load").
+    $OPCODE_ASM("LD", REG/16(BC + RegOfs16(r)), UINT/16(h, l).
+
+    REG/16(BC + RegOfs16(r)) = UINT/16(h, l).
+
+    $OPCODE_CYCLES(10).
+    OPCODE_LEAVE.
 
 OPCODE 000r0010:
 
-    ; LD BC/DE,A:
+    ; LD (BC/DE),A
 
-    MEM/8(REG/16(BC + UINT/16(r) << 1)) = REG/8(A).
+    OPCODE_ENTER.
+    $OPCODE_COMMENT("write A to memory by register indirect").
+    $OPCODE_ASM("LD", "(" REG/16(BC + r) ")", "A".
+
+    MEM/8(REG/16(BC + r)) = REG/8(A).
+
+    $OPCODE_CYCLES(7).
+    OPCODE_LEAVE.
+
+OPCODE 00100010 llllllll hhhhhhhh:
+
+    ; LD (nn),HL/IX/IY
+
+    OPCODE_ENTER.
+    $OPCODE_COMMENT("write index register to memory").
+    $OPCODE_ASM("LD", "(" UINT/16(h, l) ")", REG/16(BC + RegOfs16(2)).
+
+    MEM/16(UINT/16(h, l)) = REG/16(BC + RegOfs16(2)).
+
+    $OPCODE_CYCLES(16).
+    OPCODE_LEAVE.
+
+OPCODE 00110010 llllllll hhhhhhhh:
+
+    ; LD (nn),A
+
+    OPCODE_ENTER.
+    $OPCODE_COMMENT("write A to memory").
+    $OPCODE_ASM("LD", "(" UINT/16(h, l) ")", "A".
+
+    MEM/8(UINT/16(h, l)) = REG/8(A).
+
+    $OPCODE_CYCLES(13).
+    OPCODE_LEAVE.
 
 OPCODE 00rr0011:
 
-    REG/16(BC + UINT/16(r) << 1) += 1.  ; INC BC/DE/HL/SP
+    ; INC BC/DE/HL/IX/IY/SP
+
+    OPCODE_ENTER.
+    $OPCODE_COMMENT("16-bit register increment").
+    $OPCODE_ASM("INC", REG/16(BC + RegOfs16(r)).
+
+    REG/16(BC + RegOfs16(r)) += UINT/16(1).
+
+    $OPCODE_CYCLES(6).
+    OPCODE_LEAVE.
 
 OPCODE 00rrr100:
 

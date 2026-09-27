@@ -1,3 +1,4 @@
+
 RFFF/1.0?RSS/1.0
 
 ;------------------------------------------------------------------------------
@@ -304,12 +305,12 @@ CPU INTEL_4004 "Intel MCS-4 4004 CPU"
 
     READ REG/8(x)
     {
-        REG/8 = $VALUE(REG/4(2 * x), REG/4(2 * x + 1)).  ; high nibble first
+        REG/8 = UINT/8(REG/4(2 * x), REG/4(2 * x + 1)).  ; high nibble first
     }
 
     WRITE REG/8(x)
     {
-        $VALUE(REG/4(2 * x), REG/4(2 * x + 1)) = REG/8.  ; high nibble first
+        UINT/8(REG/4(2 * x), REG/4(2 * x + 1)) = REG/8.  ; high nibble first
     }
 
     ; address stack and other CPU states:
@@ -320,14 +321,14 @@ CPU INTEL_4004 "Intel MCS-4 4004 CPU"
 
     VAR ADDRESS_STACK/12(4).
 
-    PROC ADDRESS_STACK_PUSH
+    MACRO ADDRESS_STACK_PUSH
     {
         ADDRESS_STACK/12(ADDRESS_STACK_PTR/2) = $.
 
         ADDRESS_STACK_PTR/2 += 1.  ; may overflow
     }
 
-    PROC ADDRESS_STACK_POP
+    MACRO ADDRESS_STACK_POP
     {
         ADDRESS_STACK_PTR/2 -= 1.  ; may underflow
 
@@ -340,7 +341,7 @@ RESET:
 
     $OPCODE_CYCLE_FREQ = CLOCK_RATE.
 
-    $OPCODE_FETCH(ROM/8(12)).  ; 12-bit program counter, fetch from bus ROM/8
+    $OPCODE_FETCH(ROM/8, 12).  ; 12-bit program counter, fetch from bus ROM/8
 
 OPCODE 0000xxxx:
 

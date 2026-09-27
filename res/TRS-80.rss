@@ -329,17 +329,17 @@ SYSTEM TRS80_M1_L1 "TRS-80 Model I Level I generic system with selectable RAM"
     ROM_FILE = "TRS-80:M1L1_ROM.bin"  ; default path to ROM file
 )
 {
-    ROM TRS80_M1_4K (MEM/8, ROM_FILE).
+    ROM TRS80_M1_4K MEM/8, ROM_FILE.
 
     SELECT (RAM_SIZE)
     {
-    0:  RAM TRS80_M1_4K (MEM/8).
-    1:  RAM TRS80_M1_8K (MEM/8).
-    2:  RAM TRS80_M1_16K (MEM/8).
+    0:  RAM TRS80_M1_4K MEM/8.
+    1:  RAM TRS80_M1_8K MEM/8.
+    2:  RAM TRS80_M1_16K MEM/8.
     }
 
-    CPU Z80 (MEM/8).
+    CPU Z80 MEM/8.
 
-    KEYBOARD TRS80_M1_53 (MEM/8).
-    SCREEN TRS80_M1 (MEM/8).
+    KEYBOARD TRS80_M1_53 MEM/8.
+    SCREEN TRS80_M1 MEM/8.
 }

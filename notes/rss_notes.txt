@@ -1,0 +1,76 @@
+
+RSS NOTES
+=========
+
+
+Extensions
+----------
+
+Consider class-like extension of components (however, rather macro processing
+than OOP). Initialization section is always incremental, replacement of
+handlers must match handler specification exactly (otherwise, an additional
+handler is added), for example:
+
+
+CPU CPU_1 BUS_1/8 PARAM_1 = 0
+{
+    VAR VAR_1/8.
+
+RESET:
+
+    VAR_1/8 = UINT/8(PARAM_1).
+
+    $OPCODE_FETCH(BUS_1/8, 16).
+
+OPCODE 00000000:
+
+    .  ; NOP
+
+OPCODE 00000001:
+
+    VAR_1/8 += 1.  ; increment VAR_1
+
+OPCODE 00000010:
+
+    BUS_1/8 = VAR_1/8.  ; send VAR_1 to BUS_1
+}
+
+
+CPU CPU_2 =CPU_1 BUS_2/8 PARAM_2 = 1 ; extends CPU_1, adds BUS_2/8 and PARAM_2
+{
+    VAR VAR_2/8.
+
+RESET:
+
+    ; replaces RESET handler of CPU_1
+
+    =CPU_1  ; includes RESET handler of CPU_1
+
+    $CLEAR.  ; clear all variables (including VAR_1/8)
+
+OPCODE 00000010:
+
+    ; replaces OPCODE 00000010 handler of CPU_1
+
+    =CPU_1  ; includes OPCODE 00000010 handler of CPU_1
+
+    VAR_2/8 += 1.  ; increment VAR_2
+
+OPCODE 00000011:
+
+    ; add a new OPCODE handler
+
+    BUS_2/8 = VAR_2/8.  ; send VAR_2 to BUS_2
+}
+
+
+Prefixes
+--------
+
+Prefixes are considered modifiers of instructions which must be present before
+the actual opcode appears.
+
+The following cases of prefix handling should be considered:
+- Multiple occurrences of the same prefix (allow / disallow)
+- Order of multiple different prefix (allow / disallow)
+- mutually exclusive different prefixes (invalid, use first, use last)

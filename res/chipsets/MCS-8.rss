@@ -29,7 +29,7 @@ CPU INTEL_8008 "Intel MCS-8 8008 CPU"
 
     READ HL/14
     {
-        HL/14 = $VALUE(REG/8(H), REG/8(L)).
+        HL/14 = UINT/14(REG/8(H), REG/8(L)).
     }
 
     ; address stack:
@@ -38,14 +38,14 @@ CPU INTEL_8008 "Intel MCS-8 8008 CPU"
 
     VAR ADDRESS_STACK/14(8).
 
-    PROC ADDRESS_STACK_PUSH
+    MACRO ADDRESS_STACK_PUSH
     {
         ADDRESS_STACK/14(ADDRESS_STACK_PTR/3) = $.
 
         ADDRESS_STACK_PTR/3 += 1.  ; may overflow
     }
 
-    PROC ADDRESS_STACK_POP
+    MACRO ADDRESS_STACK_POP
     {
         ADDRESS_STACK_PTR/3 -= 1.  ; may underflow
 
@@ -58,7 +58,7 @@ RESET:
 
     $OPCODE_CYCLE_FREQ = CLOCK_RATE.
 
-    $OPCODE_FETCH(MEM/8(14)).  ; 14-bit program counter, fetch from bus MEM/8
+    $OPCODE_FETCH(MEM/8, 14).  ; 14-bit program counter, fetch from bus MEM/8
 
 OPCODE 00rrr000:
 
@@ -163,7 +163,7 @@ OPCODE 000cc011:
     {
         ADDRESS_STACK_POP.
 
-        $OPCODE_CYCLES(4).  ; total cycles will be 10
+        $OPCODE_CYCLES(4).  ; total clocks will be 10
     }
 
     $OPCODE_CYCLES(6).
@@ -184,7 +184,7 @@ OPCODE 001cc011:
     {
         ADDRESS_STACK_POP.
 
-        $OPCODE_CYCLES(4).  ; total cycles will be 10
+        $OPCODE_CYCLES(4).  ; total clocks will be 10
     }
 
     $OPCODE_CYCLES(6).
@@ -386,7 +386,7 @@ OPCODE 010cc000 llllllll xxhhhhhh:
     {
         $ = UINT/8(l) | UINT/6(h) << 8.
 
-        $OPCODE_CYCLES(4).  ; total cycles will be 22
+        $OPCODE_CYCLES(4).  ; total clocks will be 22
     }
 
     $OPCODE_CYCLES(18).
@@ -407,7 +407,7 @@ OPCODE 011cc000 llllllll xxhhhhhh:
     {
         $ = UINT/8(l) | UINT/6(h) << 8.
 
-        $OPCODE_CYCLES(4).  ; total cycles will be 22
+        $OPCODE_CYCLES(4).  ; total clocks will be 22
     }
 
     $OPCODE_CYCLES(18).
@@ -441,7 +441,7 @@ OPCODE 010cc010 llllllll xxhhhhhh:
 
         $ = UINT/8(l) | UINT/6(h) << 8.
 
-        $OPCODE_CYCLES(4).  ; total cycles will be 22
+        $OPCODE_CYCLES(4).  ; total clocks will be 22
     }
 
     $OPCODE_CYCLES(18).
@@ -456,7 +456,7 @@ OPCODE 011cc010 llllllll xxhhhhhh:
 
         $ = UINT/8(l) | UINT/6(h) << 8.
 
-        $OPCODE_CYCLES(4).  ; total cycles will be 22
+        $OPCODE_CYCLES(4).  ; total clocks will be 22
     }
 
     $OPCODE_CYCLES(18).
