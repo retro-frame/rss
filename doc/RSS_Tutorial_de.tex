@@ -1,0 +1,122 @@
+\documentclass{scrartcl}
+
+\usepackage[ngerman]{babel}
+
+\title{RSS (Retro System Specification) Format Tutorial}
+\author{Copyright (c) 2026 Ingo Boehmer $\langle$ingo@retro-leisure.net$\rangle$ }
+\date{Version 1.0!0}
+
+\begin{document}
+
+\begin{titlepage}
+\maketitle
+\vspace{40pt}
+\tableofcontents
+\end{titlepage}
+
+\newpage
+
+\section{Einleitung}
+
+\noindent RSS (Retro System Specification) ist ein Retro-Frame Datenformat. Ziel des Formats ist es, IT-Systeme so detailliert zu spezifizieren, dass eine Ausführung in einem Emulator möglich ist. Dabei können Teile der Spezifikation bewusst offen gehalten werden oder zum Zeitpunkt der Ausführung verändert oder ergänzt werden (z.B. die Bereitstellung eines konkreten ROM-Abbilds).
+
+\vspace{10pt}
+\noindent Der Fokus des RSS Formats liegt auf Retro-Systemen. Um das Format und die Implementierung eines Emulators so einfach wie möglich zu halten, werden bestimmte Grenzen festgelegt, die möglicherweise dazu führen, dass modernere IT-Systeme nicht oder nur umständlich über das RSS Format spezifiziert werden können (z.B. besteht eine Limitierung auf maximal 64 Bit für skalare Datenwerte, Adressen oder Busbreiten).
+
+\section{Grundkonzepte}
+
+\subsection{Komponenten, Geräte, Systeme und Busse}
+
+\noindent Zentrales Konzept von RSS ist eine \textit{Komponente}. Eine Komponente ist entweder ein \textit{Gerät} oder ein \textit{System}. Ein System ist das Zusammenwirken mehrere Komponenten, d.h. Geräten und/oder (Sub-)Systemen. Die Komponenten eines Systems kommunizieren untereinander über einen \textit{Bus}.
+
+\subsection{Ausführungscode}
+
+\subsection{Ereignis-Handler}
+
+\section{Formatelemente}
+
+\subsection{Kopfteil (Typ, Name, Beschreibung und Parameter)}
+
+\section{Allgemeiner Aufbau einer Gerätespezifikation}
+
+\subsection{Kopfteil (Typ, Name, Beschreibung und Parameter)}
+
+\subsection{Definitionsteil (Variablen und Makros)}
+
+\subsection{Ausführungsteil (Ereignis-Handler)}
+
+\section{Allgemeiner Aufbau einer Systemspezifikation}
+
+\section{Ergänzungen für spezifische Gerätespezifikationen}
+
+\section{Referenz}
+
+\subsection{Typkonvertierung}
+
+\subsubsection{SINT $[~/Breite~]$}
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{UINT}.
+
+\subsubsection{UINT $[~/Breite~]$}
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{SINT}.
+
+\subsubsection{Implizite Typkonvertierung}
+
+Unterschiedliche Breite.
+
+Signed / unsigned.
+
+Werte zu Zeichenketten.
+
+\subsection{Vordefinierte Bezeichner}
+
+\noindent Vordefinierte Bezeichner beginnen immer mit einem Dollar-Zeichen \textbf{\$} und repräsentieren eingebaute Funktionen oder Variablen.
+
+\subsubsection{\$}
+
+\noindent Der Bezeichner \textbf{\$} ist nur innerhalb von \textbf{FETCH}-Handlern definiert. Er repräsentiert eine Variable, welche die Adresse des \textbf{FETCH}-Busses enthält (nach den gemäß Handler-Bedingung zur Anweisung gehörenden Worten) und entspricht dem \textit{Program Counter} bzw. \textit{Instruction Pointer}. Die Breite beträgt 64 Bit, soweit nicht mittels \textbf{\$FETCH} eine anderer Wert angegeben wurde (damit werden die möglichen \textbf{FETCH}-Adressen beschränkt). Die Variable kann gelesen und geschrieben werden.
+
+\vspace{10pt}
+\noindent Bleibt der Wert unverändert, wird nach Verlassen des Handlers das nächste Wort vom \textbf{FETCH}-Bus geladen. Wird er hingegen vom Handler verändert, wird das Wort an der zugewiesenen Adresse vom \textbf{FETCH}-Bus geladen. Somit lassen sich etwa Sprünge sehr einfach ausdrücken (z.B. springt \texttt{\$~=~0x100} zur absoluten Adresse 100H, während \texttt{\$~-=~7} sieben Worte zurückspringt, wobei die zur aktuellen Anweisung gehörigen Worte zu berücksichtigen sind, d.h. \texttt{FETCH 00000000:~\$~-=~1.} erzeugt eine Endlosschleife).
+
+\subsubsection{\$BIN $[~/Breite~]$}
+
+\noindent Der Bezeichner \textbf{\$BIN} ist überall definiert und repräsentiert eine Funktion, die eine Liste von Werten in eine Zeichenkette mit der binären Darstellung der zusammengefügten Werte umwandelt:
+
+\vspace{10pt}
+\texttt{\$BIN$(Wert~[~,~Wert~]*)$}
+
+\vspace{10pt}
+\noindent Mit Ausnahme des ersten Wertes müssen alle Werte eine bestimmbare Breite haben. Alle Werte werden in absteigender Wertigkeit bitweise hintereinander gepackt und das Resultat wird dann ausgewertet.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{\$DEC}, \textbf{\$HEX}, \textbf{\$SINT}, \textbf{\$UINT}.
+
+\subsubsection{\$CLEAR}
+
+\subsubsection{\$DEC}
+
+\noindent Der Bezeichner \textbf{\$DEC} ist überall definiert und repräsentiert eine Funktion, die einen Wert in eine Zeichenkette mit dessen dezimaler Darstellung umwandelt:
+
+\vspace{10pt}
+\indent \texttt{\$DEC$(Wert)$}
+
+\vspace{10pt}
+\noindent Es gibt keine führenden Nullen. Falls der Wert einen vorzeichenbehafteten Typ hat und negativ ist, wird dem absoluten Wert ein Minuszeichen \textbf{-} vorangestellt.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{\$BIN}, \textbf{\$HEX}, \textbf{\$SINT}, \textbf{\$UINT}.
+
+\subsubsection{\$HEX $[~/Breite~]$}
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{\$BIN}, \textbf{\$DEC}, \textbf{\$SINT}, \textbf{\$UINT}.
+
+\subsubsection{\$INSTANCE}
+
+\subsubsection{\$ROM\_IMAGE}
+
+\end{document}

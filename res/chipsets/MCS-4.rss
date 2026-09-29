@@ -1,4 +1,3 @@
-
 RFFF/1.0?RSS/1.0
 
 ;------------------------------------------------------------------------------
@@ -21,7 +20,7 @@ RFFF/1.0?RSS/1.0
 ; I/O ports are connected to a ROM, RAM or I/O chip rather than using a central
 ; bus, this specification uses the following virtual bus concept:
 ;
-; - ROM/8
+; - FETCH/8
 ;
 ;   This bus is used for fetching data (i.e. instructions) from a ROM by read
 ;   events from the CPU. A 12-bit address is used and each ROM shall recognize
@@ -74,15 +73,43 @@ RFFF/1.0?RSS/1.0
 
 ;------------------------------------------------------------------------------
 ;
+;  General constants
+;
+;------------------------------------------------------------------------------
+
+
+CONST IO_MODE(3)  ; 4001 ROM chip I/O line mode labels
+{
+    "output line (0 on read)",
+    "output line (1 on read)",
+    "input line"
+}
+
+
+CONST P(8)  ; 4004 CPU chip register pair names
+{
+    "0P", "1P", "2P", "3P", "4P", "5P", "6P", "7P"
+}
+
+
+;------------------------------------------------------------------------------
+;
 ;  4001 ROM chip
 ;
 ;------------------------------------------------------------------------------
 
 
-ROM INTEL_4001 "Intel MCS-4 4001 256 x 8 bit ROM chip (load image from file)"
+INTEL_4001 "Intel MCS-4 4001 256 x 8 bit 4 line I/O ROM chip (image from file)"
+
+` This ROM component is part of the Intel MCS-4 Micro Computer Set and is
+` intended to work with the 4004 CPU chip. Up to 16 ROM chips may be added to
+` a single MCS-4 system while each ROM chip loads up to 256 bytes binary data
+` from ROM_FILE which are mapped read only to address 000H-FFFH on the FETCH/8
+` bus. In addition, each ROM chip has 4 lines where each line can be configured
+` individually as an output line (selectable 0 or 1 on read) or an input line.
 
     ROM_FILE = "",  ; must be set by caller
-    ROM/8,          ; 8-bit fetch bus
+    FETCH/8,        ; 8-bit fetch bus
     SRC/0,          ; address transmission event bus
     ROM_PORT/4,     ; 4-bit ROM port read/write bus
 
@@ -93,33 +120,26 @@ ROM INTEL_4001 "Intel MCS-4 4001 256 x 8 bit ROM chip (load image from file)"
     ; This component translates PORT/4 reads and writes to multiple IO/1
     ; reads and writes.
 
-    IO_0/1, IO_0_MODE = 0
-        ("output line (0 on read)", "output line (1 on read)", "input line"),
-
-    IO_1/1, IO_1_MODE = 0
-        ("output line (0 on read)", "output line (1 on read)", "input line"),
-
-    IO_2/1, IO_2_MODE = 0
-        ("output line (0 on read)", "output line (1 on read)", "input line"),
-
-    IO_3/1, IO_3_MODE = 0
-        ("output line (0 on read)", "output line (1 on read)", "input line")
+    IO_0/1, IO_0_MODE = 0 (IO_MODE(0), IO_MODE(1), IO_MODE(2)),
+    IO_1/1, IO_1_MODE = 0 (IO_MODE(0), IO_MODE(1), IO_MODE(2)),
+    IO_2/1, IO_2_MODE = 0 (IO_MODE(0), IO_MODE(1), IO_MODE(2)),
+    IO_3/1, IO_3_MODE = 0 (IO_MODE(0), IO_MODE(1), IO_MODE(2))
 {
-    VAR SRC_PORT/1.
+    ROM ROM/8(256) = $ROM_IMAGE(ROM_FILE, $INSTANCE * 256).
 
-    CONST ROM_MEM/8(256) = $ROM_IMAGE(ROM_FILE, $INSTANCE * 256).
+    VAR SRC_PORT/1.
 
 RESET:
 
-    $CLEAR.  ; clear all ROM variables
+    $CLEAR.  ; clear all ROM variables (note that ROM/8 is not cleared)
 
-ROM READ =UINT/4($INSTANCE)nnnnnnnn:
+FETCH/8 READ =UINT/4($INSTANCE)nnnnnnnn:
 
-    ROM/8 = ROM_MEM/8(UINT/16(n)).
+    FETCH/8 = ROM/8(n).
 
-SRC xxxiiiinnnn:
+SRC/0 xxxiiiinnnn:
 
-    IF (UINT/4(i) == $INSTANCE)
+    IF (i == $INSTANCE)
     {
         SRC_PORT/1 = 1.
     }
@@ -134,22 +154,22 @@ ROM_PORT READ:
     {
         ROM_PORT/4 = 0.
 
-        IF ((IO_0_MODE == 1) || ((IO_0_MODE > 1) && (IO_0/1 != 0)))
+        IF ((IO_0_MODE == 1) || ((IO_0_MODE > 1) && (IO_0/1(0) != 0)))
         {
             ROM_PORT/4 |= 0x1.
         }
 
-        IF ((IO_1_MODE == 1) || ((IO_1_MODE > 1) && (IO_1/1 != 0)))
+        IF ((IO_1_MODE == 1) || ((IO_1_MODE > 1) && (IO_1/1(0) != 0)))
         {
             ROM_PORT/4 |= 0x2.
         }
 
-        IF ((IO_2_MODE == 1) || ((IO_2_MODE > 1) && (IO_2/1 != 0)))
+        IF ((IO_2_MODE == 1) || ((IO_2_MODE > 1) && (IO_2/1(0) != 0)))
         {
             ROM_PORT/4 |= 0x4.
         }
 
-        IF ((IO_3_MODE == 1) || ((IO_3_MODE > 1) && (IO_3/1 != 0)))
+        IF ((IO_3_MODE == 1) || ((IO_3_MODE > 1) && (IO_3/1(0) != 0)))
         {
             ROM_PORT/4 |= 0x8.
         }
@@ -161,22 +181,22 @@ ROM_PORT WRITE:
     {
         IF (IO_0_MODE > 1)
         {
-            IO_0/1 = ROM_PORT/4.
+            IO_0/1(0) = ROM_PORT/4.
         }
 
         IF (IO_1_MODE > 1)
         {
-            IO_1/1 = ROM_PORT/4 >> 1.
+            IO_1/1(0) = ROM_PORT/4 >> 1.
         }
 
         IF (IO_2_MODE > 1)
         {
-            IO_2/1 = ROM_PORT/4 >> 2.
+            IO_2/1(0) = ROM_PORT/4 >> 2.
         }
 
         IF (IO_3_MODE > 1)
         {
-            IO_3/1 = ROM_PORT/4 >> 3.
+            IO_3/1(0) = ROM_PORT/4 >> 3.
         }
     }
 }
@@ -189,7 +209,14 @@ ROM_PORT WRITE:
 ;------------------------------------------------------------------------------
 
 
-RAM INTEL_4002 "Intel MCS-4 4002 4 x 320 bit RAM bank"
+INTEL_4002 "Intel MCS-4 4002 4 x 320 bit 4 x 4 line output RAM bank"
+
+` This RAM component is part of the Intel MCS-4 Micro Computer Set and is
+` intended to work with the 4004 CPU chip. Up to 8 RAM banks may be added to
+` a single MCS-4 system while each RAM bank consists of 4 4002 chips, each
+` providing 80 4-bit characters which are mapped to the MEM/4 bus using a
+` special addressing concept. In addition, each RAM chip has 4 output lines,
+` resulting in 16 output lines per RAM bank.
 
     SRC/0,       ; address transmission event bus
     MEM/4,       ; 4-bit main memory character bus
@@ -203,74 +230,64 @@ RAM INTEL_4002 "Intel MCS-4 4002 4 x 320 bit RAM bank"
     OUT_2_0/1, OUT_2_1/1, OUT_2_2/1, OUT_2_3/1,  ; output lines of RAM chip 2
     OUT_3_0/1, OUT_3_1/1, OUT_3_2/1, OUT_3_3/1   ; output lines of RAM chip 3
 {
-    VAR ADDR { CHIP/2, REGISTER/2, CHAR/4 }
-
-    VAR CHIP(4)
+    RAM CHIP(4)
     {
-        REGISTER(4) { MAIN_CHAR/4(16), STATUS_CHAR/4(4) }
+        REG(4) { MAIN_CHAR/4(16), STATUS_CHAR/4(4) }
     }
+
+    VAR ADDR { CHIP/2, REG/2, CHAR/4 }
 
 RESET:
 
-    $CLEAR.  ; clear all RAM variables
+    $CLEAR.  ; clear RAM and all RAM variables
 
-SRC =UINT/3($INSTANCE)ccrrnnnn:
+SRC/0 =UINT/3($INSTANCE)ccrrnnnn:
 
-    ADDR:CHIP/2 = UINT/2(c).
-    ADDR:REGISTER/2 = UINT/2(r).
-    ADDR:CHAR/4 = UINT/4(n).
+    ; receive main character address from SRC/0 (send register control) bus
 
-MEM READ =UINT/3($INSTANCE)xxxxxxxx:
+    ADDR:CHIP/2 = c.
+    ADDR:REG/2 = r.
+    ADDR:CHAR/4 = n.
 
-    MEM/4 = CHIP(ADDR:CHIP):REGISTER(ADDR:REGISTER):MAIN_CHAR/4(ADDR:CHAR).
+MEM/4 READ =UINT/3($INSTANCE)xxxxxxxx:
 
-MEM WRITE =UINT/3($INSTANCE)xxxxxxxx:
+    MEM/4 = CHIP(ADDR:CHIP/2):REG(ADDR:REG/2):MAIN_CHAR/4(ADDR:CHAR/4).
 
-    CHIP(ADDR:CHIP):REGISTER(ADDR:REGISTER):MAIN_CHAR/4(ADDR:CHAR) = MEM/4.
+MEM/4 WRITE =UINT/3($INSTANCE)xxxxxxxx:
 
-STAT READ =UINT/3($INSTANCE)xxxxxxnn:
+    CHIP(ADDR:CHIP/2):REG(ADDR:REG/2):MAIN_CHAR/4(ADDR:CHAR/4) = MEM/4.
 
-    STAT/4 = CHIP(ADDR:CHIP):REGISTER(ADDR:REGISTER):STATUS_CHAR/4(UINT/2(n)).
+STAT/4 READ =UINT/3($INSTANCE)xxxxxxnn:
 
-STAT WRITE =UINT/3($INSTANCE)xxxxxxnn:
+    STAT/4 = CHIP(ADDR:CHIP/2):REG(ADDR:REG/2):STATUS_CHAR/4(n).
 
-    CHIP(ADDR:CHIP):REGISTER(ADDR:REGISTER):STATUS_CHAR/4(UINT/2(n)) = STAT/4.
+STAT/4 WRITE =UINT/3($INSTANCE)xxxxxxnn:
 
-RAM_PORT WRITE =UINT/3($INSTANCE)xxxxxxxx:
+    CHIP(ADDR:CHIP/2):REG(ADDR:REG/2):STATUS_CHAR/4(n) = STAT/4.
 
-    IF (ADDR:CHIP <= 1)
+RAM_PORT/4 WRITE =UINT/3($INSTANCE)xxxxxxxx:
+
+    SELECT (ADDR:CHIP/2)
     {
-        IF (ADDR:CHIP == 0)
-        {
-            OUT_0_0/1 = RAM_PORT/4.
-            OUT_0_1/1 = RAM_PORT/4 >> 1.
-            OUT_0_2/1 = RAM_PORT/4 >> 2.
-            OUT_0_3/1 = RAM_PORT/4 >> 3.
-        }
-        ELSE
-        {
-            OUT_1_0/1 = RAM_PORT/4.
-            OUT_1_1/1 = RAM_PORT/4 >> 1.
-            OUT_1_2/1 = RAM_PORT/4 >> 2.
-            OUT_1_3/1 = RAM_PORT/4 >> 3.
-        }
-    }
-    ELSE
-    {
-        IF (ADDR:CHIP == 2)
-        {
-            OUT_2_0/1 = RAM_PORT/4.
-            OUT_2_1/1 = RAM_PORT/4 >> 1.
-            OUT_2_2/1 = RAM_PORT/4 >> 2.
-            OUT_2_3/1 = RAM_PORT/4 >> 3.
-        }
-        ELSE
-        {
-            OUT_3_0/1 = RAM_PORT/4.
-            OUT_3_1/1 = RAM_PORT/4 >> 1.
-            OUT_3_2/1 = RAM_PORT/4 >> 2.
-            OUT_3_3/1 = RAM_PORT/4 >> 3.
-        }
+    0:  OUT_0_0/1 = RAM_PORT/4.
+        OUT_0_1/1 = RAM_PORT/4 >> 1.
+        OUT_0_2/1 = RAM_PORT/4 >> 2.
+        OUT_0_3/1 = RAM_PORT/4 >> 3.
+
+    1:  OUT_1_0/1 = RAM_PORT/4.
+        OUT_1_1/1 = RAM_PORT/4 >> 1.
+        OUT_1_2/1 = RAM_PORT/4 >> 2.
+        OUT_1_3/1 = RAM_PORT/4 >> 3.
+
+    2:  OUT_2_0/1 = RAM_PORT/4.
+        OUT_2_1/1 = RAM_PORT/4 >> 1.
+        OUT_2_2/1 = RAM_PORT/4 >> 2.
+        OUT_2_3/1 = RAM_PORT/4 >> 3.
+
+    3:  OUT_3_0/1 = RAM_PORT/4.
+        OUT_3_1/1 = RAM_PORT/4 >> 1.
+        OUT_3_2/1 = RAM_PORT/4 >> 2.
+        OUT_3_3/1 = RAM_PORT/4 >> 3.
     }
 }
 
@@ -282,16 +299,23 @@ RAM_PORT WRITE =UINT/3($INSTANCE)xxxxxxxx:
 ;------------------------------------------------------------------------------
 
 
-CPU INTEL_4004 "Intel MCS-4 4004 CPU"
+INTEL_4004 "Intel MCS-4 4004 CPU"
 
-    ROM/8,            ; fetch bus
-    SRC/0,            ; address transmission bus
-    ROM_PORT/4,       ; ROM port read/write bus
-    RAM_PORT/4,       ; RAM port write bus
-    MEM/4,            ; main memory character bus
-    STAT/4,           ; status character bus
-    TEST/1,           ; test input line of CPU chip
-    CLOCK_RATE = 740  ; 740 kHz default clock rate (1.35 microseconds/cycle)
+` This CPU component is part of the Intel MCS-4 Micro Computer Set and is
+` intended to work with 4001 ROM chips, 4002 RAM banks and 4003 shift
+` registers using most of the buses internally except the test input line
+` TEST/1 which may be used at discretion. Other devices should be connected
+` using the I/O lines of the 4001 ROM chips or output lines of the 3002 RAM
+` banks.
+
+    CLOCK_RATE = 740,  ; 740 kHz default clock rate (1.35 microseconds/cycle)
+    ROM/8,             ; fetch bus
+    SRC/0,             ; address transmission bus
+    ROM_PORT/4,        ; ROM port read/write bus
+    RAM_PORT/4,        ; RAM port write bus
+    MEM/4,             ; main memory character bus
+    STAT/4,            ; status character bus
+    TEST/1             ; test input line of CPU chip
 {
     ; registers:
 
@@ -299,9 +323,7 @@ CPU INTEL_4004 "Intel MCS-4 4004 CPU"
     VAR CY/1.       ; carry flag (flip-flop)
     VAR REG/4(16).  ; 16 4-bit registers
 
-    ; register pairs:
-
-    CONST P(8) { "0P", "1P", "2P", "3P", "4P", "5P", "6P", "7P" }
+    ; provide 8-bit access to register pairs:
 
     READ REG/8(x)
     {
@@ -339,143 +361,153 @@ RESET:
 
     $CLEAR.  ; clear all CPU variables
 
-    $OPCODE_CYCLE_FREQ = CLOCK_RATE.
+    $CYCLE_FREQ = CLOCK_RATE.
 
-    $OPCODE_FETCH(ROM/8, 12).  ; 12-bit program counter, fetch from bus ROM/8
+    $FETCH(ROM/8, 12).  ; 12-bit program counter, fetch from bus ROM/8
 
-OPCODE 0000xxxx:
+FETCH 0000xxxx:
 
-    IF (UINT/4(x) == 0)
+    IF (x == 0)
     {
-        $OPCODE_COMMENT("no operation").
-        $OPCODE_ASM("NOP").
+        $COMMENT("no operation").
+        $OPCODE("NOP").
     }
     ELSE
     {
-        $OPCODE_INVALID.
+        $INST_INVALID.
     }
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 0001nact llllllll:
+FETCH 0001nact llllllll:
 
-    SELECT((UINT/1(n) << 3) | (UINT/1(a) << 2) | (UINT/1(c) << 1) | UINT/1(t))
+    SELECT (UINT/4(n, a, c, t))
     {
-    0b0000:  $OPCODE_COMMENT("jump on condition (never jump)").
-    0b1000:  $OPCODE_COMMENT("jump on condition (always jump)").
-    0b0100:  $OPCODE_COMMENT("jump on condition (jump if A == 0)").
-    0b1100:  $OPCODE_COMMENT("jump on condition (jump if A != 0)").
-    0b0010:  $OPCODE_COMMENT("jump on condition (jump if CY == 1)").
-    0b1010:  $OPCODE_COMMENT("jump on condition (jump if CY == 0)").
-    0b0001:  $OPCODE_COMMENT("jump on condition (jump if TEST == 0)").
-    0b1001:  $OPCODE_COMMENT("jump on condition (jump if TEST == 1)").
-    0b0110:  $OPCODE_COMMENT("jump on condition (jump if A == 0 or CY == 1)").
-    0b1110:  $OPCODE_COMMENT("jump on condition (jump if A != 0 and CY == 0)").
-    0b0101:  $OPCODE_COMMENT("jump on condition (jump if A == 0 or TEST == 0)").
-    0b1101:  $OPCODE_COMMENT("jump on condition (jump if A != 0 and TEST == 1)").
-    0b0011:  $OPCODE_COMMENT("jump on condition (jump if CY == 1 or TEST == 0)").
-    0b1011:  $OPCODE_COMMENT("jump on condition (jump if CY == 0 and TEST == 1)").
-    0b0111:  $OPCODE_COMMENT("jump on condition (jump if A == 0 or CY == 1 or TEST == 0)").
-    0b1111:  $OPCODE_COMMENT("jump on condition (jump if A != 0 and CY == 0 and TEST == 1)").
+    0b0000: $COMMENT("jump on condition (never jump)").
+    0b1000: $COMMENT("jump on condition (always jump)").
+    0b0100: $COMMENT("jump on condition (jump if A == 0)").
+    0b1100: $COMMENT("jump on condition (jump if A != 0)").
+    0b0010: $COMMENT("jump on condition (jump if CY == 1)").
+    0b1010: $COMMENT("jump on condition (jump if CY == 0)").
+    0b0001: $COMMENT("jump on condition (jump if TEST == 0)").
+    0b1001: $COMMENT("jump on condition (jump if TEST == 1)").
+    0b0110: $COMMENT("jump on condition (jump if A == 0 or CY == 1)").
+    0b1110: $COMMENT("jump on condition (jump if A != 0 and CY == 0)").
+    0b0101: $COMMENT("jump on condition (jump if A == 0 or TEST == 0)").
+    0b1101: $COMMENT("jump on condition (jump if A != 0 and TEST == 1)").
+    0b0011: $COMMENT("jump on condition (jump if CY == 1 or TEST == 0)").
+    0b1011: $COMMENT("jump on condition (jump if CY == 0 and TEST == 1)").
+    0b0111: $COMMENT("jump on condition (jump if A == 0 or CY == 1 or TEST == 0)").
+    0b1111: $COMMENT("jump on condition (jump if A != 0 and CY == 0 and TEST == 1)").
     }
 
-    $OPCODE_ASM("JCN ", P(UINT/3(r)), " ", UINT/8(l)).
+    $OPCODE("JCN").
+    $OPERAND(r).
+    $OPERAND(UINT/12($ >> 8, l)).
 
     VAR T/1.
 
     T/1 = 0.
 
-    IF (UINT/1(t) && (TEST/1(0) == 0))
+    IF ((t != 0) && (TEST/1(0) == 0))
     {
         T/1 |= 1.  ; test signal on bus TEST/1 is zero
     }
 
-    IF (UINT/1(c) && (CY/1 == 1))
+    IF ((c != 0) && (CY/1 == 1))
     {
         T/1 |= 1.  ; carry flag CY is set
     }
 
-    IF (UINT/1(a) && (A/4 == 0))
+    IF ((a != 0) && (A/4 == 0))
     {
         T/1 |= 1.  ; accumulator A is zero
     }
 
-    IF ((UINT/1(n) ^ T/1) != 0)
+    IF ((T/1 ^ n) != 0)
     {
-        $ = ($ & 0xF00) | UINT/8(l).  ; keep current ROM page
+        $ = UINT/12($ >> 8, l).  ; keep current ROM page
     }
 
-    $OPCODE_CYCLES(16).
+    $CYCLES(16).
 
-OPCODE 0010rrr0 dddddddd:
+FETCH 0010rrr0 dddddddd:
 
-    $OPCODE_COMMENT("fetch immediate").
-    $OPCODE_ASM("FIM ", P(UINT/3(r)), " ", UINT/8(d)).
+    $COMMENT("fetch immediate").
+    $OPCODE("FIM").
+    $OPERAND(P(r)).
+    $OPERAND(d).
 
-    REG/8(UINT/3(r)) = UINT/8(d).
+    REG/8(r) = d.
 
-    $OPCODE_CYCLES(16).
+    $CYCLES(16).
 
-OPCODE 0010rrr1:
+FETCH 0010rrr1:
 
-    $OPCODE_COMMENT("send register control").
-    $OPCODE_ASM("SRC ", P(UINT/3(r))).
+    $COMMENT("send register control").
+    $OPCODE("SRC").
+    $OPERAND(P(r)).
 
-    SRC/0(RAM_BANK << 8 | REG/8(UINT/3(r))).
+    SRC/0(UINT/11(RAM_BANK, r)).
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 0011rrr0:
+FETCH 0011rrr0:
 
-    $OPCODE_COMMENT("fetch indirect").
-    $OPCODE_ASM("FIN ", P(UINT/3(r))).
+    $COMMENT("fetch indirect").
+    $OPCODE("FIN").
+    $OPERAND(P(r)).
 
-    REG/8(UINT/3(r)) = ROM/8(($ & 0xF00) | REG/8(0)).
+    REG/8(r) = ROM/8(UINT/12($ >> 8, REG/8(0))).  ; keep current ROM page
 
-    $OPCODE_CYCLES(16).
+    $CYCLES(16).
 
-OPCODE 0011rrr1:
+FETCH 0011rrr1:
 
-    $OPCODE_COMMENT("jump indirect").
-    $OPCODE_ASM("JIN ", P(UINT/3(r))).
+    $COMMENT("jump indirect").
+    $OPCODE("JIN").
+    $OPERAND(P(r)).
 
-    $ = ($ & 0xF00) | REG/8(UINT/3(r)).
+    $ = UINT/12($ >> 8, REG/8(r)).  ; keep current ROM page
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 0100hhhh llllllll:
+FETCH 0100hhhh llllllll:
 
-    $OPCODE_COMMENT("jump unconditionally").
-    $OPCODE_ASM("JUN ", UINT/4(h) << 8 | UINT/8(l)).
+    $COMMENT("jump unconditionally").
+    $OPCODE("JUN").
+    $OPERAND(UINT/12(h, l)).
 
-    $ = UINT/4(h) << 8 | UINT/8(l).
+    $ = UINT/12(h, l).
 
-    $OPCODE_CYCLES(16).
+    $CYCLES(16).
 
-OPCODE 0101hhhh llllllll:
+FETCH 0101hhhh llllllll:
 
-    $OPCODE_COMMENT("jump to subroutine").
-    $OPCODE_ASM("JMS ", UINT/4(h) << 8 | UINT/8(l)).
+    $COMMENT("jump to subroutine").
+    $OPCODE("JMS").
+    $OPERAND(UINT/12(h, l)).
 
     ADDRESS_STACK_PUSH
 
-    $ = UINT/4(h) << 8 | UINT/8(l).
+    $ = UINT/12(h, l).
 
-    $OPCODE_CYCLES(16).
+    $CYCLES(16).
 
-OPCODE 0110rrrr:
+FETCH 0110rrrr:
 
-    $OPCODE_COMMENT("increment register").
-    $OPCODE_ASM("INC ", UINT/4(r)).
+    $COMMENT("increment register").
+    $OPCODE("INC ", UINT/4(r)).
+    $OPERAND(r).
 
     REG/4(UINT/4(r)) += 1.  ; may overflow
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 0111rrrr llllllll:
+FETCH 0111rrrr llllllll:
 
-    $OPCODE_COMMENT("increment and skip if zero").
-    $OPCODE_ASM("ISZ ", UINT/4(r), " ", UINT/8(l)).
+    $COMMENT("increment and skip if zero").
+    $OPCODE("ISZ ", UINT/4(r), " ", UINT/8(l)).
 
     REG/4(UINT/4(r)) += 1.  ; may overflow
 
@@ -484,228 +516,228 @@ OPCODE 0111rrrr llllllll:
         $ = ($ & 0xF00) | UINT/8(l).  ; keep current ROM page
     }
 
-    $OPCODE_CYCLES(16).
+    $CYCLES(16).
 
-OPCODE 1000rrrr:
+FETCH 1000rrrr:
 
-    $OPCODE_COMMENT("add register to accumulator with carry").
-    $OPCODE_ASM("ADD ", UINT/4(r)).
+    $COMMENT("add register to accumulator with carry").
+    $OPCODE("ADD ", UINT/4(r)).
 
     A/4 += REG/4(UINT/4(r)) + CY/1.
 
-    CY/1 = $FLAGS:CARRY.
+    $FLAGS(CY/1, CF).
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 1001rrrr:
+FETCH 1001rrrr:
 
-    $OPCODE_COMMENT("subtract register from accumulator with borrow").
-    $OPCODE_ASM("SUB ", UINT/4(r)).
+    $COMMENT("subtract register from accumulator with borrow").
+    $OPCODE("SUB ", UINT/4(r)).
 
     A/4 += ~REG/4(UINT/4(r)) + (CY/1 ^ 1).
 
-    CY/1 = $FLAGS:CARRY.
+    $FLAGS(CY/1, CF).
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 1010rrrr:
+FETCH 1010rrrr:
 
-    $OPCODE_COMMENT("load accumulator (from register)").
-    $OPCODE_ASM("LD ", UINT/4(r)).
+    $COMMENT("load accumulator (from register)").
+    $OPCODE("LD ", UINT/4(r)).
 
     A/4 = REG/4(UINT/4(r)).
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 1011rrrr:
+FETCH 1011rrrr:
 
-    $OPCODE_COMMENT("exchange register and accumulator").
-    $OPCODE_ASM("XCH ", UINT/4(r)).
+    $COMMENT("exchange register and accumulator").
+    $OPCODE("XCH ", UINT/4(r)).
 
     A/4 <> REG/4(UINT/4(r)).
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 1100dddd:
+FETCH 1100dddd:
 
-    $OPCODE_COMMENT("branch back and load").
-    $OPCODE_ASM("BBL ", UINT/4(d)).
+    $COMMENT("branch back and load").
+    $OPCODE("BBL ", UINT/4(d)).
 
     ADDRESS_STACK_POP.
 
     A/4 = UINT/4(d).
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 1101dddd:
+FETCH 1101dddd:
 
-    $OPCODE_COMMENT("load accumulator immediate").
-    $OPCODE_ASM("LDM ", UINT/4(d)).
+    $COMMENT("load accumulator immediate").
+    $OPCODE("LDM ", UINT/4(d)).
 
     A/4 = UINT/4(d).
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11100000:
+FETCH 11100000:
 
-    $OPCODE_COMMENT("write data RAM data character").
-    $OPCODE_ASM("WRM").
+    $COMMENT("write data RAM data character").
+    $OPCODE("WRM").
 
     MEM/4(RAM_BANK/3 << 8) = A/4.
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11100001:
+FETCH 11100001:
 
-    $OPCODE_COMMENT("write RAM port").
-    $OPCODE_ASM("WMP").
+    $COMMENT("write RAM port").
+    $OPCODE("WMP").
 
     RAM_PORT/4(RAM_BANK/3 << 8) = A/4.
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11100010:
+FETCH 11100010:
 
-    $OPCODE_COMMENT("write ROM port").
-    $OPCODE_ASM("WRR").
+    $COMMENT("write ROM port").
+    $OPCODE("WRR").
 
     ROM_PORT/4 = A/4.
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11100010:
+FETCH 11100010:
 
-    $OPCODE_COMMENT("write program RAM (not implemented)").
-    $OPCODE_ASM("WPM").
+    $COMMENT("write program RAM (not implemented)").
+    $OPCODE("WPM").
 
-    $OPCODE_INVALID.
+    $INST_INVALID.
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 111001ss:
+FETCH 111001ss:
 
-    $OPCODE_COMMENT("write data RAM status character").
+    $COMMENT("write data RAM status character").
 
     SELECT(UINT/2(s))
     {
-    0:  $OPCODE_ASM("WR0").
-    1:  $OPCODE_ASM("WR1").
-    2:  $OPCODE_ASM("WR2").
-    3:  $OPCODE_ASM("WR3").
+    0:  $OPCODE("WR0").
+    1:  $OPCODE("WR1").
+    2:  $OPCODE("WR2").
+    3:  $OPCODE("WR3").
     }
 
     STAT/4((RAM_BANK/3 << 8) | UINT/2(s)) = A/4.
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11101000:
+FETCH 11101000:
 
-    $OPCODE_COMMENT("subtract data RAM from memory with borrow").
-    $OPCODE_ASM("SBM").
+    $COMMENT("subtract data RAM from memory with borrow").
+    $OPCODE("SBM").
 
     A/4 += ~MEM/4(RAM_BANK/3 << 8) + (CY/1 ^ 1).
 
-    CY/1 = $FLAGS:CARRY.
+    $FLAGS(CY/1, CF).
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11101001:
+FETCH 11101001:
 
-    $OPCODE_COMMENT("read data RAM data character").
-    $OPCODE_ASM("RDM").
+    $COMMENT("read data RAM data character").
+    $OPCODE("RDM").
 
     A/4 = MEM/4(RAM_BANK/3 << 8).
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11101010:
+FETCH 11101010:
 
-    $OPCODE_COMMENT("read ROM port").
-    $OPCODE_ASM("RDR").
+    $COMMENT("read ROM port").
+    $OPCODE("RDR").
 
     A/4 = ROM_PORT/4.
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11101011:
+FETCH 11101011:
 
-    $OPCODE_COMMENT("add data RAM to accumulator with carry").
-    $OPCODE_ASM("ADM").
+    $COMMENT("add data RAM to accumulator with carry").
+    $OPCODE("ADM").
 
     A/4 += MEM/4(RAM_BANK/3 << 8) + CY/1.
 
-    CY/1 = $FLAGS:CARRY.
+    $FLAGS(CY/1, CF).
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 111011ss:
+FETCH 111011ss:
 
-    $OPCODE_COMMENT("read data RAM status character").
+    $COMMENT("read data RAM status character").
 
     SELECT(UINT/2(s))
     {
-    0:  $OPCODE_ASM("RD0").
-    1:  $OPCODE_ASM("RD1").
-    2:  $OPCODE_ASM("RD2").
-    3:  $OPCODE_ASM("RD3").
+    0:  $OPCODE("RD0").
+    1:  $OPCODE("RD1").
+    2:  $OPCODE("RD2").
+    3:  $OPCODE("RD3").
     }
 
     A/4 = STAT/4((RAM_BANK/3 << 8) | UINT/2(s)).
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11110000:
+FETCH 11110000:
 
-    $OPCODE_COMMENT("clear both (accumulator and carry)").
-    $OPCODE_ASM("CLB").
+    $COMMENT("clear both (accumulator and carry)").
+    $OPCODE("CLB").
 
     A/4 = 0.
     CY/1 = 0.
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11110001:
+FETCH 11110001:
 
-    $OPCODE_COMMENT("clear carry").
-    $OPCODE_ASM("CLC").
+    $COMMENT("clear carry").
+    $OPCODE("CLC").
 
     CY/1 = 0.
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11110010:
+FETCH 11110010:
 
-    $OPCODE_COMMENT("increment accumulator").
-    $OPCODE_ASM("IAC").
+    $COMMENT("increment accumulator").
+    $OPCODE("IAC").
 
     A/4 += 1.
 
-    CY/1 = $FLAGS:CARRY.
+    $FLAGS(CY/1, CF).
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11110011:
+FETCH 11110011:
 
-    $OPCODE_COMMENT("complement carry").
-    $OPCODE_ASM("CMC").
+    $COMMENT("complement carry").
+    $OPCODE("CMC").
 
     CY/1 = ~CY/1.
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11110100:
+FETCH 11110100:
 
-    $OPCODE_COMMENT("complement accumulator").
-    $OPCODE_ASM("CMA").
+    $COMMENT("complement accumulator").
+    $OPCODE("CMA").
 
     A/4 = ~A/4.
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11110101:
+FETCH 11110101:
 
-    $OPCODE_COMMENT("rotate accumulator left through carry").
-    $OPCODE_ASM("RAL").
+    $COMMENT("rotate accumulator left through carry").
+    $OPCODE("RAL").
 
     A/4 <<<= 1.  ; rotate without carry
 
@@ -713,12 +745,12 @@ OPCODE 11110101:
     A/4 ^= CY/1.
     CY/1 ^= A/4.
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11110110:
+FETCH 11110110:
 
-    $OPCODE_COMMENT("rotate accumulator right through carry").
-    $OPCODE_ASM("RAR").
+    $COMMENT("rotate accumulator right through carry").
+    $OPCODE("RAR").
 
     CY/1 ^= A/4.  ; swap least significand bit with carry
     A/4 ^= CY/1.
@@ -726,33 +758,33 @@ OPCODE 11110110:
 
     A/4 >>>= 1.  ; rotate without carry
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11110111:
+FETCH 11110111:
 
-    $OPCODE_COMMENT("transmit carry and clear").
-    $OPCODE_ASM("TCC").
+    $COMMENT("transmit carry and clear").
+    $OPCODE("TCC").
 
     A/4 = CY/1.
     CY/1 = 0.
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11111000:
+FETCH 11111000:
 
-    $OPCODE_COMMENT("decrement accumulator").
-    $OPCODE_ASM("DAC").
+    $COMMENT("decrement accumulator").
+    $OPCODE("DAC").
 
     A/4 += 0xF.
 
-    CY/1 = $FLAGS:CARRY.
+    $FLAGS(CY/1, CF).
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11111001:
+FETCH 11111001:
 
-    $OPCODE_COMMENT("transfer carry substract").
-    $OPCODE_ASM("TCS").
+    $COMMENT("transfer carry substract").
+    $OPCODE("TCS").
 
     IF (CY/1 == 0)
     {
@@ -765,35 +797,35 @@ OPCODE 11111001:
 
     CY/1 = 0.
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11111010:
+FETCH 11111010:
 
-    $OPCODE_COMMENT("set carry").
-    $OPCODE_ASM("STC").
+    $COMMENT("set carry").
+    $OPCODE("STC").
 
     CY/1 = 1.
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11111011:
+FETCH 11111011:
 
-    $OPCODE_COMMENT("decimal adjust accumulator").
-    $OPCODE_ASM("DAA").
+    $COMMENT("decimal adjust accumulator").
+    $OPCODE("DAA").
 
     IF ((CY/1 == 1) || (A/4 > 9))
     {
         A/4 += 6.
 
-        CY/1 = $FLAGS:CARRY.
+        $FLAGS(CY/1, CF).
     }
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11111100:
+FETCH 11111100:
 
-    $OPCODE_COMMENT("keyboard process").
-    $OPCODE_ASM("KBP").
+    $COMMENT("keyboard process").
+    $OPCODE("KBP").
 
     IF (A/4 == 0x4)
     {
@@ -808,19 +840,19 @@ OPCODE 11111100:
         A/4 = 0xF.
     }
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 11111101:
+FETCH 11111101:
 
-    $OPCODE_COMMENT("designate command line").
-    $OPCODE_ASM("DCL").
+    $COMMENT("designate command line").
+    $OPCODE("DCL").
 
     RAM_BANK/3 = A/4.
 
-    $OPCODE_CYCLES(8).
+    $CYCLES(8).
 
-OPCODE 1111111x:
+FETCH 1111111x:
 
-    $OPCODE_INVALID.
-    $OPCODE_CYCLES(8).
+    $INST_INVALID.
+    $CYCLES(8).
 }

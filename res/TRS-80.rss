@@ -25,17 +25,17 @@ IMPORT ":chipsets/Z80.rss".  ; include Z80 CPU specification
 ;------------------------------------------------------------------------------
 
 
-ROM TRS80_M1_4K "TRS-80 Model I 4K ROM (used for Level I)"
+MEMORY TRS80_ROM_M1_4K "TRS-80 Model I 4K ROM (used for Level I)"
 
 ` This ROM component loads up to 4K binary data from ROM_FILE which is mapped
-` read-only to address 0000H-0FFFH on the data bus.
+` read-only to address 0000H-0FFFH on the MEM/8 bus.
 
-    MEM/8,         ; 8-bit data bus
-    ROM_FILE = ""  ; path should be provided by caller
+    ROM_FILE = "", ; path should be provided by caller
+    MEM/8          ; 8-bit data bus
 {
-    CONST ROM/8(0x1000) = $ROM_IMAGE(ROM_FILE).
+    ROM ROM/8(0x1000) = $ROM_IMAGE(ROM_FILE).
 
-MEM READ 0000nnnnnnnnnnnn:
+MEM/8 READ 0000nnnnnnnnnnnn:
 
     MEM/8 = ROM/8(UINT/16(n)).
 }
@@ -49,7 +49,7 @@ MEM READ 0000nnnnnnnnnnnn:
 ;------------------------------------------------------------------------------
 
 
-RAM TRS80_M1_4K "TRS-80 Model I 4K RAM"
+MEMORY TRS80_RAM_M1_4K "TRS-80 Model I 4K RAM"
 
 ` This 4K RAM component is cleared on reset and maps the memory to address
 ` 4000H-4FFFH on the data bus.
@@ -62,17 +62,17 @@ RESET:
 
     $CLEAR.  ; clear RAM
 
-MEM READ 0100nnnnnnnnnnnn:
+MEM/8 READ 0100nnnnnnnnnnnn:
 
     MEM/8 = RAM/8(UINT/16(n)).
 
-MEM WRITE 0100nnnnnnnnnnnn:
+MEM/8 WRITE 0100nnnnnnnnnnnn:
 
     RAM/8(UINT/16(n)) = MEM/8.
 }
 
 
-RAM TRS80_M1_8K "TRS-80 Model I 8K RAM"
+MEMORY TRS80_RAM_M1_8K "TRS-80 Model I 8K RAM"
 
 ` This 8K RAM component is cleared on reset and maps the memory to address
 ` 4000H-5FFFH on the data bus.
@@ -85,17 +85,17 @@ RESET:
 
     $CLEAR.  ; clear RAM
 
-MEM READ 010nnnnnnnnnnnnn:
+MEM/8 READ 010nnnnnnnnnnnnn:
 
     MEM/8 = RAM/8(UINT/16(n)).
 
-MEM WRITE 010nnnnnnnnnnnnn:
+MEM/8 WRITE 010nnnnnnnnnnnnn:
 
     RAM/8(UINT/16(n)) = MEM/8.
 }
 
 
-RAM TRS80_M1_16K "TRS-80 Model I 16K RAM (up to 3 instances)"
+MEMORY TRS80_RAM_M1_16K "TRS-80 Model I 16K RAM (up to 3 instances)"
 
 ` This 16K RAM component is cleared on reset and may have up to 3 instances.
 ` The memory of the first instance is mapped to addresses 4000H-7FFFH, of the
@@ -127,7 +127,7 @@ MEM WRITE =UINT/2($INSTANCE + 1)nnnnnnnnnnnnnn:
 ;------------------------------------------------------------------------------
 
 
-KEYBOARD TRS80_M1_53 "TRS-80 Model I Keyboard (53 Keys)"
+KEYBOARD TRS80_KBD_M1_53 "TRS-80 Model I Keyboard (53 Keys)"
 
 ` This component is a standard TRS-80 Model I keyboard with 53 keys. The code
 ` of a pressed key is mapped to addresses 3800H-38FFH on the data bus. The
@@ -288,9 +288,8 @@ MEM READ 111000nnnnnnnn:
 
 
 SCREEN TRS80_M1 "TRS-80 Model I Video"
-(
+
     MEM/8  ; data bus
-)
 {
     $CHAR_IMAGE(0x00, 0x1F, "TRS-80:M1_CHR00.bmp").
     $CHAR_IMAGE(0x20, 0x5F, "TRS-80:M1_CHR20.bmp").
@@ -323,22 +322,21 @@ MEM WRITE 001111rrrrcccccc:
 
 
 SYSTEM TRS80_M1_L1 "TRS-80 Model I Level I generic system with selectable RAM"
-(
-    MEM/8,                            ; TRS-80 uses a single 8-bit memory bus
-    RAM_SIZE = 0 ("4K", "8K", "16K),  ; default RAM size is 4K
-    ROM_FILE = "TRS-80:M1L1_ROM.bin"  ; default path to ROM file
-)
+
+    ROM_FILE = "TRS-80:M1L1_ROM.bin",  ; default path to ROM file
+    MEM/8,                             ; TRS-80 uses a single 8-bit memory bus
+    RAM_SIZE = 0 ("4K", "8K", "16K)    ; default RAM size is 4K
 {
-    ROM TRS80_M1_4K MEM/8, ROM_FILE.
+    CPU Z80 MEM/8, -, -, -, 1700.  ; one bus only, 1.7 MHz clock rate
+
+    MEMORY TRS80_ROM_M1_4K MEM/8, ROM_FILE.
 
     SELECT (RAM_SIZE)
     {
-    0:  RAM TRS80_M1_4K MEM/8.
-    1:  RAM TRS80_M1_8K MEM/8.
-    2:  RAM TRS80_M1_16K MEM/8.
+    0:  MEMORY TRS80_RAM_M1_4K MEM/8.
+    1:  MEMORY TRS80_RAM_M1_8K MEM/8.
+    2:  MEMORY TRS80_RAM_M1_16K MEM/8.
     }
-
-    CPU Z80 MEM/8.
 
     KEYBOARD TRS80_M1_53 MEM/8.
     SCREEN TRS80_M1 MEM/8.
