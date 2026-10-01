@@ -25,15 +25,16 @@ IMPORT ":chipsets/Z80.rss".  ; include Z80 CPU specification
 ;------------------------------------------------------------------------------
 
 
-MEMORY TRS80_ROM_M1_4K "TRS-80 Model I 4K ROM (used for Level I)"
+ROM TRS80_M1_4K "TRS-80 Model I 4K ROM (used for Level I)"
 
 ` This ROM component loads up to 4K binary data from ROM_FILE which is mapped
 ` read-only to address 0000H-0FFFH on the MEM/8 bus.
-
+(
     ROM_FILE = "", ; path should be provided by caller
     MEM/8          ; 8-bit data bus
+)
 {
-    ROM ROM/8(0x1000) = $ROM_IMAGE(ROM_FILE).
+    CONST ROM/8(0x1000) = $ROM_IMAGE(ROM_FILE).
 
 MEM/8 READ 0000nnnnnnnnnnnn:
 
@@ -117,6 +118,41 @@ MEM READ =UINT/2($INSTANCE + 1)nnnnnnnnnnnnnn:
 MEM WRITE =UINT/2($INSTANCE + 1)nnnnnnnnnnnnnn:
 
     DATA/8(UINT/16(n)) = MEM/8.
+}
+
+
+;------------------------------------------------------------------------------
+;
+;  TRS-80 Model I memory-mapped display with 1KB video memory
+;
+;------------------------------------------------------------------------------
+
+
+TRS80_M1_VIDEO "TRS-80 Model I Video"
+(
+    MEM/8  ; data bus
+)
+{
+    $CHAR_IMAGE(0x00, 0x1F, "TRS-80:M1_CHR00.bmp").
+    $CHAR_IMAGE(0x20, 0x5F, "TRS-80:M1_CHR20.bmp").
+    $CHAR_IMAGE(0x60, 0x7F, "TRS-80:M1_CHR60.bmp").
+    $CHAR_IMAGE(0x80, 0xBF, "TRS-80:M1_CHR80.bmp").
+
+[RESET]
+
+    ; default text output is 64 x 16 characters white on black:
+
+    $DISPLAY_TEXT(64, 16, 0xFFFFFF, 0x000000).
+
+    $DISPLAY_CLEAR(0x20).
+
+[READ MEM 001111rrrrcccccc]
+
+    MEM/8 = $DISPLAY_CHAR/8(UINT/4(r), UINT/6(c)).
+
+[WRITE MEM 001111rrrrcccccc]
+
+    $DISPLAY_CHAR/8(UINT/4(r), UINT/6(c)) = MEM/8.
 }
 
 
@@ -282,50 +318,19 @@ MEM READ 111000nnnnnnnn:
 
 ;------------------------------------------------------------------------------
 ;
-;  TRS-80 Model I memory-mapped screen with 1KB video memory
-;
-;------------------------------------------------------------------------------
-
-
-SCREEN TRS80_M1 "TRS-80 Model I Video"
-
-    MEM/8  ; data bus
-{
-    $CHAR_IMAGE(0x00, 0x1F, "TRS-80:M1_CHR00.bmp").
-    $CHAR_IMAGE(0x20, 0x5F, "TRS-80:M1_CHR20.bmp").
-    $CHAR_IMAGE(0x60, 0x7F, "TRS-80:M1_CHR60.bmp").
-    $CHAR_IMAGE(0x80, 0xBF, "TRS-80:M1_CHR80.bmp").
-
-RESET:
-
-    ; default text output is 64 x 16 characters white on black:
-
-    $SCREEN_TEXT(64, 16, 0xFFFFFF, 0x000000).
-
-    $SCREEN_CLEAR(0x20).
-
-MEM READ 001111rrrrcccccc:
-
-    MEM/8 = $SCREEN_CHAR/8(UINT/4(r), UINT/6(c)).
-
-MEM WRITE 001111rrrrcccccc:
-
-    $SCREEN_CHAR/8(UINT/4(r), UINT/6(c)) = MEM/8.
-}
-
-
-;------------------------------------------------------------------------------
-;
 ;  TRS-80 Model I Level I generic system with selectable RAM
 ;
 ;------------------------------------------------------------------------------
 
 
-SYSTEM TRS80_M1_L1 "TRS-80 Model I Level I generic system with selectable RAM"
+SYSTEM TRS80_M1_L1
 
+    "TRS-80 Model I Level I generic system with selectable RAM"
+(
     ROM_FILE = "TRS-80:M1L1_ROM.bin",  ; default path to ROM file
     MEM/8,                             ; TRS-80 uses a single 8-bit memory bus
     RAM_SIZE = 0 ("4K", "8K", "16K)    ; default RAM size is 4K
+)
 {
     CPU Z80 MEM/8, -, -, -, 1700.  ; one bus only, 1.7 MHz clock rate
 

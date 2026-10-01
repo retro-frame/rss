@@ -3,6 +3,68 @@ RSS NOTES
 =========
 
 
+Bus addressing and data
+-----------------------
+
+A bus usually uses an address AND data:
+
+- Handler:
+
+  [READ BUS/n aaaa] BUS/n = XYZ/n(a).
+  [WRITE BUS/n aaaa] XYZ/n(a) = BUS/n.
+
+- Invocation:
+
+  XYZ/n = BUS/n(ADDR).
+  BUS/n(ADDR) = XYZ/n.
+
+A bus may omit the address or the data (or both).
+
+No address but data:
+
+- Handler:
+
+  [READ BUS/n] BUS/n = XYZ/n.
+  [WRITE BUS/n] XYZ/n = BUS/n.
+
+- Invocation:
+
+  XYZ/n = BUS/n.
+  BUS/n = XYZ/n.
+
+No data but address:
+
+- Handler:
+
+  [BUS aaaa] SRC_ADDR/4 = a.
+
+- Invocation:
+
+  BUS(ADDR).
+
+No address and no data:
+
+- Handler:
+
+  [BUS] EVENT_COUNT/32 += 1.
+
+- Invocation:
+
+  BUS.
+
+
+Prefixes
+--------
+
+Prefixes are considered modifiers of instructions which must be present before
+the actual opcode is fetched.
+
+The following cases of prefix handling should be considered:
+- Multiple occurrences of the same prefix (allow / disallow)
+- Order of multiple different prefix (allow / disallow)
+- mutually exclusive different prefixes (invalid, use first, use last)
+
+
 Extensions
 ----------
 
@@ -12,31 +74,35 @@ handlers must match handler specification exactly (otherwise, an additional
 handler is added), for example:
 
 
-CPU CPU_1 BUS_1/8 PARAM_1 = 0
+CPU CPU_1(BUS_1/8, ATTR_1 = 0)
 {
     VAR VAR_1/8.
 
-RESET:
+[RESET]
 
-    VAR_1/8 = UINT/8(PARAM_1).
+    VAR_1/8 = UINT/8(ATTR_1).
 
-    $OPCODE_FETCH(BUS_1/8, 16).
+    $FETCH(BUS_1/8, 16).
 
-OPCODE 00000000:
+[FETCH 00000000]
 
     .  ; NOP
 
-OPCODE 00000001:
+[FETCH 00000001]
 
     VAR_1/8 += 1.  ; increment VAR_1
 
-OPCODE 00000010:
+[FETCH 00000010]
 
     BUS_1/8 = VAR_1/8.  ; send VAR_1 to BUS_1
 }
 
 
-CPU CPU_2 =CPU_1 BUS_2/8 PARAM_2 = 1 ; extends CPU_1, adds BUS_2/8 and PARAM_2
+CPU CPU_2 =CPU_1  ; extends CPU_1, adds bus BUS_2/8 and attribute ATTR_2
+(
+    BUS_2/8,
+    ATTR_2 = 1
+)
 {
     VAR VAR_2/8.
 
@@ -48,29 +114,17 @@ RESET:
 
     $CLEAR.  ; clear all variables (including VAR_1/8)
 
-OPCODE 00000010:
+[FETCH 00000010]
 
-    ; replaces OPCODE 00000010 handler of CPU_1
+    ; replaces FETCH 00000010 handler of CPU_1
 
-    =CPU_1  ; includes OPCODE 00000010 handler of CPU_1
+    =CPU_1  ; includes FETCH 00000010 handler of CPU_1
 
-    VAR_2/8 += 1.  ; increment VAR_2
+    VAR_2/8 += ATTR_2.  ; increment VAR_2
 
-OPCODE 00000011:
+[FETCH 00000011]
 
-    ; add a new OPCODE handler
+    ; add a new FETCH handler
 
     BUS_2/8 = VAR_2/8.  ; send VAR_2 to BUS_2
 }
-
-
-Prefixes
---------
-
-Prefixes are considered modifiers of instructions which must be present before
-the actual opcode appears.
-
-The following cases of prefix handling should be considered:
-- Multiple occurrences of the same prefix (allow / disallow)
-- Order of multiple different prefix (allow / disallow)
-- mutually exclusive different prefixes (invalid, use first, use last)

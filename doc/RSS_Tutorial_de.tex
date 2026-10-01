@@ -18,20 +18,94 @@
 
 \section{Einleitung}
 
-\noindent RSS (Retro System Specification) ist ein Retro-Frame Datenformat. Ziel des Formats ist es, IT-Systeme so detailliert zu spezifizieren, dass eine Ausführung in einem Emulator möglich ist. Dabei können Teile der Spezifikation bewusst offen gehalten werden oder zum Zeitpunkt der Ausführung verändert oder ergänzt werden (z.B. die Bereitstellung eines konkreten ROM-Abbilds).
+\noindent RSS (Retro System Specification) ist ein Retro-Frame Textdatenformat. Ziel des Formats ist es, IT-Systeme so detailliert zu spezifizieren, dass eine Ausführung in einem Emulator möglich ist. Dabei können Teile der Spezifikation bewusst offen gehalten werden oder zum Zeitpunkt der Ausführung verändert oder ergänzt werden (z.B. die Bereitstellung eines konkreten ROM-Abbilds).
 
 \vspace{10pt}
 \noindent Der Fokus des RSS Formats liegt auf Retro-Systemen. Um das Format und die Implementierung eines Emulators so einfach wie möglich zu halten, werden bestimmte Grenzen festgelegt, die möglicherweise dazu führen, dass modernere IT-Systeme nicht oder nur umständlich über das RSS Format spezifiziert werden können (z.B. besteht eine Limitierung auf maximal 64 Bit für skalare Datenwerte, Adressen oder Busbreiten).
 
 \section{Grundkonzepte}
 
-\subsection{Komponenten, Geräte, Systeme und Busse}
+\subsection{Logisches Design von IT-Systemen}
+
+\noindent IT-Systeme können unterschiedlich komplex sein. Im einfachsten Fall handelt es sich um eine einzelne Komponente, die eine spezifische Aufgabe erfüllt. Im komplexeren Fällen besteht ein IT-System aus einer Vielzahl von Komponenten, die miteinander zusammenwirken und vielfältige Aufgaben erfüllen können. Solche Komponenten können Mikrochips (z.B. CPU-, ROM- oder RAM-Chips) oder Ein-/Ausgabegeräte sein (z.B. Tastatur oder Bildschirm). Komponenten können wiederum weitere (Sub-)Komponenten beinhalten. Zwischen verbundenen Komponenten muss eine Kommunikation (d.h. der Austausch von Daten) möglich sein.
+
+\vspace{10pt}
+\noindent Das RSS Format versucht, das logische Design von IT-Systemen so natürlich wie möglich abzubilden und dabei trotzdem eine so detaillierte Spezifikation zu bieten, die eine Ausführung durch einen Emulator ermöglicht. Dabei liegt der Fokus auf ``Retro-Systemen'' für Mikrocomputer, so dass bei der Systemspezifikation Einschränkungen in Kauf genommen werden. Obwohl nicht auf Intel-Architekturen beschränkt kann die betrachtete Ära gut durch die Intel-CPUs vom 4004 bis zum 80486 eingegrenzt werden. Bei der Spezifikation kann eine Makro- von einer Mikroebene unterschieden werden.
+
+\subsubsection{Makroebene}
+
+\noindent Die Makroebene wird mittels \textit{Komponenten} \textit{(components)}, \textit{Parametern} \textit{(parameters)} sowie die einzelnen Komponenten verbindenden \textit{Busse} \textit{(buses)} beschrieben. Dabei kann eine \textbf{Komponente} sowohl aus einer Spezifikation auf Mikroebene als auch aus untergeordneten Komponenten bestehen. Eine Komponente, die untergeordnete Komponenten beinhaltet, wird als \textit{System} \textit{(system)} bezeichnet. Dies gilt rekursiv, d.h. eine Komponente kann also ihrerseits ein System sein.
+
+\vspace{10pt}
+\noindent Neben einer Bezeichnung können für Komponenten zusätzliche \textbf{Parameter} spezifiziert werden, was eine dynamische Konfiguration durch den Emulator ermöglicht (z.B. Festlegung der Speicherkapazität des RAMs oder der Taktung einer CPU). Und natürlich können diese Parameter auch statisch von einem System, das konfigurierbare Komponenten enthält, gesetzt werden (z.B. kann ein TRS-80 Model I System die Zilog Z80 CPU auf 1,7 MHz festlegen, obwohl auch andere Taktungen möglich wären).
+
+\vspace{10pt}
+\noindent Um Komponenten logisch miteinander zu verbinden, verwendet RSS das Konzept von \textbf{Bussen}, wobei im Gegensatz zu physischen Bussen Adress- und Datenleitungen miteinander kombiniert werden (es gibt also weder eine Trennung von Adress- und Datenleitungen noch das Gegenteil, z.B. durch Zeit-Multiplexing). Während bei einem Bus die Bitbreite für die Daten immer festgelegt sein muss, sind die Adressen auf Makroebene grundsätzlich unbeschränkt (die Einschränkungen können sich dann aus der Spezifikation der einzelnen Komponenten auf Mikroebene ergeben). Von einem kombinierten Adress- und Datenbus können Komponenten lesen \textit{(read)} oder auf einen solchen schreiben \textit{(write)}. In Spezialfällen können Datenbusse ohne Adresse (z.B. Test-Pins) abgebildet werden, indem ausschließlich die Adresse 0 verwendet wird. Umgekehrt können reine Adressbusse ohne Daten durch einen Bus mit Bitlänge 0 spezifiziert werden, die lediglich unter der Adresse ein Ereignis \textit{(event)} auslösen (z.B. Interrupt-Leitungen).
+
+\subsubsection{Mikroebene}
+
+\noindent Auf Mikroebene kann eine Komponente [...]
+
+\subsection{Spezifikationsdateien (RSS- und Ressourcen-Dateien)}
+
+\noindent Eine Spezifikation von IT-Systemen im RSS-Format erfolgt in Textform in sog. RSS-Dateien, die in einen Emulator geladen werden können. Über einen Import-Mechanismus ist es möglich, die Spezifikation mehrerer Komponenten auf verschiedene Dateien zu verteilen, die dann nicht explizit geladen werden müssen. Jedoch muss jede Komponente vollständig innerhalb einer RSS-Datei spezifiziert werden (d.h. es gibt keinen allgemeinen Include-Mechanismus).
+
+\vspace{10pt}
+\noindent Neben den RSS-Dateien können andere Formate, insbesondere Bitmaps im BMP-Format und Speicherabbildungen im ROM-Format, Teil der Spezifikation sein. Solche Dateien werden grundsätzlich über einen individuellen Mechanismus geladen.
+
+\section{Vordefinierte Komponentenklassen}
+
+\noindent Komponentenklassen werden genutzt, um einem Emulator Hinweise zur Darstellung im und Interaktionen mit dem Host-System zu geben. Obwohl grundsätzlich in jeder Komponente sämtliche Funktionalitäten genutzt werden können, kann die Bildschirmdarstellung sowie die Steuerung über Maus oder Tastatur variieren. Da jede Komponente i
+
+\subsection{CPU}
+
+\noindent Bei einer Komponente der Klasse \textbf{CPU} werden Daten, die über \textbf{\$FETCH} automatisch von einem spezifizierten Bus geladen werden, als Prozessorinstruktionen betrachtet. Die jeweiligen FETCH-Handler können dem Emulator mittels \textbf{\$OPCODE}, \textbf{\$OPERAND} und \textbf{\$COMMENT} Hinweise zur jeweiligen Instruktion geben.
+
+\subsection{ROM}
+
+\noindent Bei einer Komponente der Klasse \textbf{ROM} wird die erste Konstante (\textbf{CONST}) im Definitionsteil als ROM-Speicher betrachtet und kann durch einen Emulator entsprechend dargestellt werden.
+
+\subsection{RAM}
+
+\noindent Bei einer Komponente der Klasse \textbf{RAM} wird die erste Variable (\textbf{VAR}) im Definitionsteil als RAM-Speicher betrachtet und kann durch einen Emulator entsprechend dargestellt werden.
+
+\subsection{SCREEN}
+
+\noindent Bei einer Komponente der Klasse \textbf{ROM} wird die erste Konstante (\textbf{CONST}) im Definitionsteil als ROM-Speicher betrachtet und kann durch einen Emulator entsprechend dargestellt werden.
+
+\subsection{KEYBOARD}
+
+\subsection{PANEL}
+
+\subsection{TIMER}
+
+\subsection{SYSTEM}
+
+\subsection{DEVICE}
+
+\section{Komponenten, Geräte, Systeme und Busse}
 
 \noindent Zentrales Konzept von RSS ist eine \textit{Komponente}. Eine Komponente ist entweder ein \textit{Gerät} oder ein \textit{System}. Ein System ist das Zusammenwirken mehrere Komponenten, d.h. Geräten und/oder (Sub-)Systemen. Die Komponenten eines Systems kommunizieren untereinander über einen \textit{Bus}.
 
 \subsection{Ausführungscode}
 
 \subsection{Ereignis-Handler}
+
+\subsection{Sprachelemente}
+
+\subsubsection{Typen}
+
+\noindent Jeweils unsigned und signed mit und ohne Bitbreite. Zusätzlich Zeichenketten. Aktuell keine Fließkommazahlen.
+
+\subsubsection{Konstanten}
+
+\noindent Zahl, beginnend mit einer Ziffer ist unsigned int (dec, 0x... = hex, 0b... = bin). Mit vorangestelltem +/- Zeichen signed. In double quotes Zeichenketten (ASCII). Aktuell keine Fließkommazahlen.
+
+\subsubsection{Objekte}
+
+\noindent Ein \textit{Objekt} ist die allgemeinste Form...
+
+\subsubsection{Operatoren}
 
 \section{Formatelemente}
 
@@ -51,72 +125,126 @@
 
 \section{Referenz}
 
-\subsection{Typkonvertierung}
-
-\subsubsection{SINT $[~/Breite~]$}
-
-\vspace{10pt}
-\noindent Siehe auch: \textbf{UINT}.
-
-\subsubsection{UINT $[~/Breite~]$}
-
-\vspace{10pt}
-\noindent Siehe auch: \textbf{SINT}.
-
-\subsubsection{Implizite Typkonvertierung}
-
-Unterschiedliche Breite.
-
-Signed / unsigned.
-
-Werte zu Zeichenketten.
-
 \subsection{Vordefinierte Bezeichner}
 
 \noindent Vordefinierte Bezeichner beginnen immer mit einem Dollar-Zeichen \textbf{\$} und repräsentieren eingebaute Funktionen oder Variablen.
 
 \subsubsection{\$}
 
-\noindent Der Bezeichner \textbf{\$} ist nur innerhalb von \textbf{FETCH}-Handlern definiert. Er repräsentiert eine Variable, welche die Adresse des \textbf{FETCH}-Busses enthält (nach den gemäß Handler-Bedingung zur Anweisung gehörenden Worten) und entspricht dem \textit{Program Counter} bzw. \textit{Instruction Pointer}. Die Breite beträgt 64 Bit, soweit nicht mittels \textbf{\$FETCH} eine anderer Wert angegeben wurde (damit werden die möglichen \textbf{FETCH}-Adressen beschränkt). Die Variable kann gelesen und geschrieben werden.
+\noindent Der Bezeichner \textbf{\$} referenziert eine Variable, welche mit 0 initialisiert und implizit benutzt wird, wenn über \textbf{\$FETCH/\textit{Adressbreite}}(\textit{Fetch-Bus}) die Ausführung von Instruktionen gestartet wird. In diesem Fall wird \textbf{\$} als Startadresse für das Laden von Instruktions-Worten über den Fetch-Bus verwendet. Wird ein passender Handler gefunden, erfolgt \textit{vor} Ausführung des Handlers eine implizite Erhöhung von \textbf{\$} um die Anzahl Pattern in der Handler-Bedingung (d.h. Instruktions-Worten). Somit entspricht \textbf{\$} dem \textit{Program Counter} bzw. \textit{Instruction Pointer}.
 
 \vspace{10pt}
-\noindent Bleibt der Wert unverändert, wird nach Verlassen des Handlers das nächste Wort vom \textbf{FETCH}-Bus geladen. Wird er hingegen vom Handler verändert, wird das Wort an der zugewiesenen Adresse vom \textbf{FETCH}-Bus geladen. Somit lassen sich etwa Sprünge sehr einfach ausdrücken (z.B. springt \texttt{\$~=~0x100} zur absoluten Adresse 100H, während \texttt{\$~-=~7} sieben Worte zurückspringt, wobei die zur aktuellen Anweisung gehörigen Worte zu berücksichtigen sind, d.h. \texttt{FETCH 00000000:~\$~-=~1.} erzeugt eine Endlosschleife).
+\noindent Die Variable kann gelesen und geschrieben werden. Sofern bei (impliziten oder expliziten) Änderungen von \textbf{\$} Bits jenseits der Adressbreite gesetzt sind, werden diese auf 0 zurückgesetzt (somit kann \textbf{\$} niemals einen Wert außerhalb der vorgegebenen Adressbreite annehmen, obwohl der Datentyp von \textbf{\$} keine festgelegte Breite hat).
+
+\vspace{10pt}
+\noindent Bleibt der Wert durch den Handler unverändert, wird nach Verlassen des Handlers das nächste Wort vom Fetch-Bus geladen. Wird er hingegen verändert, wird das Wort an der zugewiesenen Adresse vom Fetch-Bus geladen. Somit lassen sich etwa Sprünge sehr einfach ausdrücken (z.B. springt \texttt{\$~=~0x100} zur absoluten Adresse 100H, während \texttt{\$~-=~7} sieben Worte zurückspringt, wobei die zur aktuellen Instruktion gehörigen Worte zu berücksichtigen sind, d.h. \texttt{[FETCH 00000000]~-=~1.} erzeugt eine Endlosschleife).
 
 \subsubsection{\$BIN $[~/Breite~]$}
 
-\noindent Der Bezeichner \textbf{\$BIN} ist überall definiert und repräsentiert eine Funktion, die eine Liste von Werten in eine Zeichenkette mit der binären Darstellung der zusammengefügten Werte umwandelt:
+\noindent Der Bezeichner \textbf{\$BIN} referenziert eine Funktion, die eine Liste von Werten in eine Zeichenkette mit der binären Darstellung der zusammengefügten Werte umwandelt:
 
 \vspace{10pt}
 \texttt{\$BIN$(Wert~[~,~Wert~]*)$}
 
 \vspace{10pt}
-\noindent Mit Ausnahme des ersten Wertes müssen alle Werte eine bestimmbare Breite haben. Alle Werte werden in absteigender Wertigkeit bitweise hintereinander gepackt und das Resultat wird dann ausgewertet.
+\noindent Mit Ausnahme des ersten Wertes müssen alle Werte einen Datentyp mit einer festgelegten Breite haben. Alle Werte werden in absteigender Wertigkeit bitweise hintereinander gepackt und das Resultat wird dann ausgewertet.
 
 \vspace{10pt}
-\noindent Siehe auch: \textbf{\$DEC}, \textbf{\$HEX}, \textbf{\$SINT}, \textbf{\$UINT}.
+\noindent Hat auch der Datentyp des ersten Wertes eine festgelegte Breite, erfolgt ob die Ausgabe für die gesamte Breite, wobei bei Bedarf Nullen vorangestellt werden. Außerdem bestimmt der Datentyp des ersten Wertes, ob ein Vorzeichen ausgegeben wird: Handelt es sich um eine vorzeichenlose Ganzzahl \textit{(unsigned integer)}, wird kein Vorzeichen ausgegeben. Handelt es sich hingegen um eine vorzeichenbehaftete Ganzzahl \textit{(signed integer)}, wird stets ein Vorzeichen vorangestellt und der Absolutbetrag ausgegeben. All dies kann bei Bedarf z.B. durch explizite Typumwandlung des ersten Wertes gesteuert werden.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{\$DEC}, \textbf{\$HEX}.
 
 \subsubsection{\$CLEAR}
 
-\subsubsection{\$DEC}
-
-\noindent Der Bezeichner \textbf{\$DEC} ist überall definiert und repräsentiert eine Funktion, die einen Wert in eine Zeichenkette mit dessen dezimaler Darstellung umwandelt:
+\noindent Der Bezeichner \textbf{\$CLEAR} referenziert ein Makro, welches alle oder bestimmte Variablen auf den Wert 0 setzt:
 
 \vspace{10pt}
-\indent \texttt{\$DEC$(Wert)$}
+\texttt{\$CLEAR$~[~Variable~[~,~Variable~]*~]$}
 
 \vspace{10pt}
-\noindent Es gibt keine führenden Nullen. Falls der Wert einen vorzeichenbehafteten Typ hat und negativ ist, wird dem absoluten Wert ein Minuszeichen \textbf{-} vorangestellt.
+\noindent Wird keine Variable angegeben, wird \textbf{\$CLEAR} auf alle im Definitionsteil festgelegten Variablen, andernfalls nur auf die angegebenen Variablen angewendet. Handelt es sich bei einer Variable um eine Struktur oder ein Feld, wird \textbf{\$CLEAR} auf sämtliche Elemente angewendet.
 
 \vspace{10pt}
-\noindent Siehe auch: \textbf{\$BIN}, \textbf{\$HEX}, \textbf{\$SINT}, \textbf{\$UINT}.
+\noindent \textbf{\$CLEAR} hat \textit{keinen} Effekt auf Konstanten (\textbf{CONST}), \textbf{\$ROM} oder \textbf{\$RAM}.
+
+\subsubsection{\$COMMENT}
+
+\subsubsection{\$DEC $[~/Breite~]$}
+
+\noindent Der Bezeichner \textbf{\$DEC} referenziert eine Funktion, die eine Liste von Werten in eine Zeichenkette mit der dezimalen Darstellung der zusammengefügten Werte umwandelt:
+
+\vspace{10pt}
+\texttt{\$DEC$(Wert~[~,~Wert~]*)$}
+
+\vspace{10pt}
+\noindent Mit Ausnahme des ersten Wertes müssen alle Werte einen Datentyp mit einer festgelegten Breite haben. Alle Werte werden in absteigender Wertigkeit bitweise hintereinander gepackt und das Resultat wird dann ausgewertet.
+
+\vspace{10pt}
+\noindent Hat auch der Datentyp des ersten Wertes eine festgelegte Breite, erfolgt ob die Ausgabe für die gesamte Breite, wobei bei Bedarf Nullen vorangestellt werden. Außerdem bestimmt der Datentyp des ersten Wertes, ob ein Vorzeichen ausgegeben wird: Handelt es sich um eine vorzeichenlose Ganzzahl \textit{(unsigned integer)}, wird kein Vorzeichen ausgegeben. Handelt es sich hingegen um eine vorzeichenbehaftete Ganzzahl \textit{(signed integer)}, wird stets ein Vorzeichen vorangestellt und der Absolutbetrag ausgegeben. All dies kann bei Bedarf z.B. durch explizite Typumwandlung des ersten Wertes gesteuert werden.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{\$BIN}, \textbf{\$HEX}.
 
 \subsubsection{\$HEX $[~/Breite~]$}
 
+\noindent Der Bezeichner \textbf{\$HEX} referenziert eine Funktion, die eine Liste von Werten in eine Zeichenkette mit der hexadezimalen Darstellung der zusammengefügten Werte umwandelt:
+
 \vspace{10pt}
-\noindent Siehe auch: \textbf{\$BIN}, \textbf{\$DEC}, \textbf{\$SINT}, \textbf{\$UINT}.
+\texttt{\$HEX$(Wert~[~,~Wert~]*)$}
+
+\vspace{10pt}
+\noindent Mit Ausnahme des ersten Wertes müssen alle Werte einen Datentyp mit einer festgelegten Breite haben. Alle Werte werden in absteigender Wertigkeit bitweise hintereinander gepackt und das Resultat wird dann ausgewertet.
+
+\vspace{10pt}
+\noindent Hat auch der Datentyp des ersten Wertes eine festgelegte Breite, erfolgt ob die Ausgabe für die gesamte Breite, wobei bei Bedarf Nullen vorangestellt werden. Außerdem bestimmt der Datentyp des ersten Wertes, ob ein Vorzeichen ausgegeben wird: Handelt es sich um eine vorzeichenlose Ganzzahl \textit{(unsigned integer)}, wird kein Vorzeichen ausgegeben. Handelt es sich hingegen um eine vorzeichenbehaftete Ganzzahl \textit{(signed integer)}, wird stets ein Vorzeichen vorangestellt und der Absolutbetrag ausgegeben. All dies kann bei Bedarf z.B. durch explizite Typumwandlung des ersten Wertes gesteuert werden.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{\$BIN}, \textbf{\$DEC}.
 
 \subsubsection{\$INSTANCE}
 
+\subsubsection{\$LOCK}
+
+\noindent Der Bezeichner \textbf{\$LOCK} referenziert ein Makro, welches den Bus für sämtliche anderweitigen Zugriffe sperrt (d.h. exklusiv für den Handler verfügbar macht):
+
+\vspace{10pt}
+\texttt{\$LOCK$(Bus)$}
+
+\vspace{10pt}
+\noindent Falls der Bus bereits durch einen anderen Handler gesperrt ist, wartet \textbf{\$LOCK} so lange, bis der Bus frei ist. Der Bus kann explizit über \textbf{\$UNLOCK} wieder entsperrt werden. Ansonsten wird er nach Verlassen des Handlers automatisch wieder entsperrt.
+
+\vspace{10pt}
+\noindent \textbf{Achtung:} Ein Bus sollte nicht vor einem \textbf{\$OPCODE} oder \textbf{\$OPCODE\_INVALID} Makro platziert werden, weil ansonsten bei einem evtl. Debugging der Bus gesperrt bleibt, während die Ausführung unterbrochen wird.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{\$UNLOCK}.
+
+\subsubsection{\$OPCODE}
+
+\subsubsection{\$OPCODE\_INVALID}
+
+\subsubsection{\$OPERAND}
+
+\subsubsection{\$RAM/$Breite$}
+
+\subsubsection{\$ROM/$Breite$}
+
 \subsubsection{\$ROM\_IMAGE}
+
+\subsubsection{\$TIMER}
+
+\subsubsection{\$UNLOCK}
+
+\noindent Der Bezeichner \textbf{\$UNLOCK} referenziert ein Makro, welches einen über \textbf{\$LOCK} gesperrten Bus wieder freigibt:
+
+\vspace{10pt}
+\texttt{\$UNLOCK$(Bus)$}
+
+\vspace{10pt}
+\noindent Falls der Bus nicht gesperrt war, hat \textbf{\$UNLOCK} keinen Effekt.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{\$LOCK}.
 
 \end{document}
