@@ -46,6 +46,38 @@
 
 \noindent Auf Mikroebene kann eine Komponente [...]
 
+\subsection{Datentypen}
+
+\noindent RSS unterstützt eine Reihe von Datentypen. Während mit \textit{skalaren} Datentypen gerechnet werden kann (in Form von \textit{Ausdrücken}), dienen \textit{textuelle} Datentypen allein der möglichen Anzeige durch einen Emulator. \textit{Zusammengesetzte} Datentypen hingegen dienen dem strukturierten Zugriff auf Werte dieser beiden Datentypen.
+
+\subsubsection{Vorzeichenlose Ganzzahlen $(unsigned~integer)$}
+
+\noindent Als skalarer Standard-Datentyp, d.h. falls der Datentype eines skalaren Wertes nicht bestimmt werden kann, werden vorzeichenlose Ganzzahlen \textit{(unsigned integers)} angenommen.
+
+\vspace{10pt}
+\noindent Der Wertebereich von vorzeichenlosen Ganzzahlen hängt von der sog. \textit{Breite} (d.h. der Anzahl von Bits, mit denen der Wert dargestellt wird) ab. Bei $n$ Bits ist der Wertebereich $0..2^{n} - 1$.
+
+\vspace{10pt}
+\noindent Die zulässige Breite liegt im Bereich $1..64$. Eine vorzeichenlose Ganzzahl mit jeder Breite im angegebenen Bereich ist ein eigener Datentyp. Ist die Breite nicht angegeben, wird als Breite $64$ angenommen, jedoch handelt es sich um einen eigenen Datentyp, der nicht mit dem Datentyp identisch ist, der eine explizite Breite von 64 Bit hat.
+
+\subsubsection{Vorzeichenbehaftete Ganzzahlen $(signed~integer)$}
+
+\noindent Ein weiterer skalarer Datentyp sind vorzeichenbehaftete Ganzzahlen \textit{(signed integers)}. Solche Datentypen erlauben negative Werte, die als Zweierkomplement dargestellt werden.
+
+\vspace{10pt}
+\noindent Der Wertebereich von vorzeichenbehafteten Ganzzahlen hängt von der sog. \textit{Breite} (d.h. der Anzahl von Bits, mit denen der Wert dargestellt wird) ab. Bei $n$ Bits ist der Wertebereich $-2^{n-1}..2^{n-1} - 1$.
+
+\vspace{10pt}
+\noindent Die zulässige Breite liegt im Bereich $1..64$. Eine vorzeichenbehaftete Ganzzahl mit jeder Breite im angegebenen Bereich ist ein eigener Datentyp. Ist die Breite nicht angegeben, wird als Breite $64$ angenommene, jedoch handelt es sich um einen eigenen Datentyp, der nicht mit dem Datentyp identisch ist, der eine explizite Breite von 64 Bit hat.
+
+\subsubsection{Zeichenketten $(strings)$}
+
+\noindent Zeichenketten \textit{(strings)} sind der einzige textuelle Datentyp. Eine Zeichenkette besteht aus einer Sequenz von beliebig vielen (möglicherweise keinen) ASCII-codierten Zeichen, wobei keine Steuerzeichen vorkommen dürfen. Dies entspricht dem Standard-Zeichensatz gemäß Retro-Frame Definition.
+
+\subsubsection{Felder $(arrays)$}
+
+\subsubsection{Strukturen $(structures)$}
+
 \subsection{Spezifikationsdateien (RSS- und Ressourcen-Dateien)}
 
 \noindent Eine Spezifikation von IT-Systemen im RSS-Format erfolgt in Textform in sog. RSS-Dateien, die in einen Emulator geladen werden können. Über einen Import-Mechanismus ist es möglich, die Spezifikation mehrerer Komponenten auf verschiedene Dateien zu verteilen, die dann nicht explizit geladen werden müssen. Jedoch muss jede Komponente vollständig innerhalb einer RSS-Datei spezifiziert werden (d.h. es gibt keinen allgemeinen Include-Mechanismus).
@@ -91,13 +123,13 @@
 
 \subsection{Ereignis-Handler}
 
-\subsection{Sprachelemente}
-
 \subsubsection{Typen}
 
 \noindent Jeweils unsigned und signed mit und ohne Bitbreite. Zusätzlich Zeichenketten. Aktuell keine Fließkommazahlen.
 
-\subsubsection{Konstanten}
+\subsection{Sprachelemente}
+
+\subsubsection{Literale}
 
 \noindent Zahl, beginnend mit einer Ziffer ist unsigned int (dec, 0x... = hex, 0b... = bin). Mit vorangestelltem +/- Zeichen signed. In double quotes Zeichenketten (ASCII). Aktuell keine Fließkommazahlen.
 
@@ -107,7 +139,7 @@
 
 \subsubsection{Operatoren}
 
-\section{Formatelemente}
+\section{Sprachelemente}
 
 \subsection{Kopfteil (Typ, Name, Beschreibung und Parameter)}
 
@@ -121,9 +153,58 @@
 
 \section{Allgemeiner Aufbau einer Systemspezifikation}
 
-\section{Ergänzungen für spezifische Gerätespezifikationen}
-
 \section{Referenz}
+
+\subsection{Schlüsselwörter}
+
+\noindent Schlüsselwörter sind Sprachelemente mit festgelegten Bedeutungen. RSS versucht, die Anzahl solcher Wörter gering zu halten, da diese nicht als frei verwendbare Bezeichner genutzt werden können.
+
+\subsubsection{CONST}
+
+\noindent Das Schlüsselwort \textbf{CONST} leitet die Definition einer Konstante, die auch eine Struktur oder ein Array sein kann, ein:
+
+\vspace{10pt}
+\texttt{CONST$~Objektdeklaration~$=$~Initialisierung~$}
+
+\vspace{10pt}
+\noindent Die Definition kann lokal (d.h. innerhalb einer Komponente) als auch global (d.h. außerhalb von Komponenten) sein. Nach der Objektdeklaration steht der definierte Bezeichner lesend zur Verfügung.
+
+\vspace{10pt}
+\noindent Für eine Konstante ist immer eine Initialisierung erforderlich. Im Gegensatz zu Variablen können Konstanten auch Zeichenketten \textit{(strings)} enthalten.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{VAR}.
+
+\subsubsection{ELIF}
+
+\subsubsection{ELSE}
+
+\subsubsection{IF}
+
+\subsubsection{READ}
+
+\subsubsection{SELECT}
+
+\subsubsection{VAR}
+
+\noindent Das Schlüsselwort \textbf{VAR} leitet die Definition einer Variablen, die auch eine Struktur oder ein Array sein kann, ein:
+
+\vspace{10pt}
+\texttt{VAR$~Objektdeklaration~[~$=$~Initialisierung~]$}
+
+\vspace{10pt}
+\noindent Die Definition kann lokal (d.h. innerhalb einer Komponente) als auch global (d.h. außerhalb von Komponenten) sein. Nach der Objektdeklaration steht der definierte Bezeichner lesend und schreibend zur Verfügung.
+
+
+\vspace{10pt}
+\noindent Für eine Variable ist eine Initialisierung optional. Fehlt diese, wird eine globale Variabel immer implizit mit 0 initialisiert, eine lokale Variable ist hingegen unbestimmt (\textbf{\$CLEAR} kann im [RESET] Handler verwendet werden, um alle lokalen Variablen mit 0 zu initialisieren),
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{CONST}, \textbf{LOCAL}, \textbf{GLOBAL}.
+
+\subsubsection{WHILE}
+
+\subsubsection{WRITE}
 
 \subsection{Vordefinierte Bezeichner}
 
@@ -155,6 +236,8 @@
 \vspace{10pt}
 \noindent Siehe auch: \textbf{\$DEC}, \textbf{\$HEX}.
 
+\subsubsection{\$CHAR\_IMAGE}
+
 \subsubsection{\$CLEAR}
 
 \noindent Der Bezeichner \textbf{\$CLEAR} referenziert ein Makro, welches alle oder bestimmte Variablen auf den Wert 0 setzt:
@@ -169,6 +252,18 @@
 \noindent \textbf{\$CLEAR} hat \textit{keinen} Effekt auf Konstanten (\textbf{CONST}), \textbf{\$ROM} oder \textbf{\$RAM}.
 
 \subsubsection{\$COMMENT}
+
+\noindent Der Bezeichner \textbf{\$COMMENT} referenziert eine Variable, welche mit 0 initialisiert und implizit benutzt wird, wenn über \textbf{\$FETCH/\textit{Adressbreite}}(\textit{Fetch-Bus}) die Ausführung von Instruktionen gestartet wird. In diesem Fall wird \textbf{\$} als Startadresse für das Laden von Instruktions-Worten über den Fetch-Bus verwendet. Wird ein passender Handler gefunden, erfolgt \textit{vor} Ausführung des Handlers eine implizite Erhöhung von \textbf{\$} um die Anzahl Pattern in der Handler-Bedingung (d.h. Instruktions-Worten). Somit entspricht \textbf{\$} dem \textit{Program Counter} bzw. \textit{Instruction Pointer}.
+
+\vspace{10pt}
+\noindent Die Variable kann gelesen und geschrieben werden. Sofern bei (impliziten oder expliziten) Änderungen von \textbf{\$} Bits jenseits der Adressbreite gesetzt sind, werden diese auf 0 zurückgesetzt (somit kann \textbf{\$} niemals einen Wert außerhalb der vorgegebenen Adressbreite annehmen, obwohl der Datentyp von \textbf{\$} keine festgelegte Breite hat).
+
+\vspace{10pt}
+\noindent Bleibt der Wert durch den Handler unverändert, wird nach Verlassen des Handlers das nächste Wort vom Fetch-Bus geladen. Wird er hingegen verändert, wird das Wort an der zugewiesenen Adresse vom Fetch-Bus geladen. Somit lassen sich etwa Sprünge sehr einfach ausdrücken (z.B. springt \texttt{\$~=~0x100} zur absoluten Adresse 100H, während \texttt{\$~-=~7} sieben Worte zurückspringt, wobei die zur aktuellen Instruktion gehörigen Worte zu berücksichtigen sind, d.h. \texttt{[FETCH 00000000]~-=~1.} erzeugt eine Endlosschleife).
+
+\subsubsection{\$CYCLE\_FREQ}
+
+\subsubsection{\$CYCLES}
 
 \subsubsection{\$DEC $[~/Breite~]$}
 
@@ -185,6 +280,18 @@
 
 \vspace{10pt}
 \noindent Siehe auch: \textbf{\$BIN}, \textbf{\$HEX}.
+
+\subsubsection{\$DISPLAY\_CHAR}
+
+\subsubsection{\$DISPLAY\_CLEAR}
+
+\subsubsection{\$DISPLAY\_TEXT}
+
+\subsubsection{\$FETCH/$Breite$}
+
+\subsubsection{\$FLAGS}
+
+\subsubsection{\$HALT}
 
 \subsubsection{\$HEX $[~/Breite~]$}
 
@@ -203,6 +310,16 @@
 \noindent Siehe auch: \textbf{\$BIN}, \textbf{\$DEC}.
 
 \subsubsection{\$INSTANCE}
+
+\subsubsection{\$KEY}
+
+\subsubsection{\$KEY\_MODIFIER}
+
+\subsubsection{\$KEYBOARD\_CLEAR}
+
+\subsubsection{\$KEYBOARD\_IMAGE}
+
+\subsubsection{\$KEYBOARD\_MAP}
 
 \subsubsection{\$LOCK}
 
@@ -224,13 +341,19 @@
 
 \subsubsection{\$OPCODE\_INVALID}
 
+\subsubsection{\$OPCODE\_PREFIX}
+
 \subsubsection{\$OPERAND}
 
 \subsubsection{\$RAM/$Breite$}
 
+\subsubsection{\$ROM\_CLEAR}
+
 \subsubsection{\$ROM/$Breite$}
 
 \subsubsection{\$ROM\_IMAGE}
+
+\subsubsection{\$SINGLE\_FETCH}
 
 \subsubsection{\$TIMER}
 
@@ -246,5 +369,23 @@
 
 \vspace{10pt}
 \noindent Siehe auch: \textbf{\$LOCK}.
+
+\subsection{Handler}
+
+\subsubsection{[EVENT $Bus$ $[Pattern]$]}
+
+\subsubsection{[FETCH $Pattern$ $[Pattern]*$]}
+
+\subsubsection{[KEY PRESSED $Pattern$]}
+
+\subsubsection{[KEY RELEASED $Pattern$]}
+
+\subsubsection{[READ $Bus$ $[Pattern]$]}
+
+\subsubsection{[RESET]}
+
+\subsubsection{[TIMER $ID$]}
+
+\subsubsection{[WRITE $Bus$ $[Pattern]$]}
 
 \end{document}

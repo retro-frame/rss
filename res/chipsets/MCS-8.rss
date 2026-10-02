@@ -16,10 +16,20 @@ RFFF/1.0?RSS/1.0
 
 CPU INTEL_8008 "Intel MCS-8 8008 CPU"
 
-    MEM/8,            ; 8-bit memory bus
-    PORT/8,           ; 8-bit port bus
-    INT/8,            ; 8-bit interrupt request bus
-    CLOCK_RATE = 500  ; 500 kHz default clock rate (2 microseconds/cycle)
+    #CHIP #CPU #INTEL #MCS-8 #8008
+
+` This CPU component is part of the Intel MCS-8 Micro Computer Set. It uses an
+` 8-bit memory bus using a 14-bit address and a separate 8-bit I/O bus using
+` a 5-bit adress where ports 0..7 are dedicated to input and ports 8..32 to
+` output. Other devices should be connected either using memory bus mapping or
+` the I/O bus using predefined port numbers. For subroutine calls, the 8008 CPU
+` uses an internal stack of 8 elements (including the current PC).
+(
+    CLOCK_RATE = 500,  ; 500 kHz default clock rate (2 microseconds/cycle)
+    MEM/8,             ; 8-bit memory bus
+    PORT/8,            ; 8-bit port bus
+    INT/8              ; 8-bit interrupt request bus
+)
 {
     ; registers:
 
@@ -34,320 +44,352 @@ CPU INTEL_8008 "Intel MCS-8 8008 CPU"
 
     ; address stack:
 
-    VAR ADDRESS_STACK_PTR/3.
+    VAR STACK_PTR/3.
 
-    VAR ADDRESS_STACK/14(8).
+    VAR STACK/14(8).
 
-    MACRO ADDRESS_STACK_PUSH
+    STACK_PUSH
     {
-        ADDRESS_STACK/14(ADDRESS_STACK_PTR/3) = $.
-
-        ADDRESS_STACK_PTR/3 += 1.  ; may overflow
+        STACK_PTR/3 += 1.  ; may overflow
     }
 
-    MACRO ADDRESS_STACK_POP
+    STACK_POP
     {
-        ADDRESS_STACK_PTR/3 -= 1.  ; may underflow
+        STACK_PTR/3 -= 1.  ; may underflow
 
-        $ = ADDRESS_STACK/14(ADDRESS_STACK_PTR/3).
+        $ = STACK/14(STACK_PTR/3).
     }
 
-RESET:
+    RETURN
+    {
+        STACK/14(STACK_PTR/3) = $.
+    }
+
+[RESET]
 
     $CLEAR.  ; clear all CPU variables
 
-    $OPCODE_CYCLE_FREQ = CLOCK_RATE.
+    $CYCLE_FREQ = CLOCK_RATE.
 
-    $OPCODE_FETCH(MEM/8, 14).  ; 14-bit program counter, fetch from bus MEM/8
+    $FETCH/14(MEM/8).  ; 14-bit program counter, fetch from bus MEM/8
 
-OPCODE 00rrr000:
+    $ = 0x0000.  ; start fetching at address 0000H
+    RETURN.
 
-    SELECT (r)
+[FETCH 00rrr000]
+
+    SELECT (r/3)
     {
-    0:
-
-        $OPCODE_COMMENT("halt").
-        $OPCODE_ASM("HLT").
+    [0] $COMMENT("halt").
+        $OPCODE("HLT").
 
         $HALT.
-        $OPCODE_CYCLES(8).
 
-    7:
+    [7] $OPCODE_INVALID.
 
-        $OPCODE_INVALID.
-        $OPCODE_CYCLES(10).
+        $CYCLES(2).  ; total cycles will be 10
     }
     ELSE
     {
-        $OPCODE_COMMENT("increment register").
+        $COMMENT("increment register").
+
+        SELECT (r/3)
+        {
+        [1] $OPCODE("INB").
+        [2] $OPCODE("INC").
+        [3] $OPCODE("IND").
+        [4] $OPCODE("INE").
+        [5] $OPCODE("INH").
+        [6] $OPCODE("INL").
+        }
+
+        REG/8(r/3) += 1.
+
+        $FLAGS(F/4, PF, SF, ZF, ?).
+
+        $CYCLES(2).  ; total cycles will be 10
+    }
+
+    $CYCLES(8).
+    RETURN.
+
+[FETCH 00rrr001]
+
+    SELECT (r/3)
+    {
+    [0] $COMMENT("halt").
+        $OPCODE("HLT").
+
+        $HALT.
+
+    [7] $OPCODE_INVALID.
+
+        $CYCLES(2).  ; total cycles will be 10
+    }
+    ELSE
+    {
+        $COMMENT("decrement register").
 
         SELECT (r)
         {
-        1:  $OPCODE_ASM("INB").
-        2:  $OPCODE_ASM("INC").
-        3:  $OPCODE_ASM("IND").
-        4:  $OPCODE_ASM("INE").
-        5:  $OPCODE_ASM("INH").
-        6:  $OPCODE_ASM("INL").
+        [1] $OPCODE("DEB").
+        [2] $OPCODE("DEC").
+        [3] $OPCODE("DED").
+        [4] $OPCODE("DEE").
+        [5] $OPCODE("DEH").
+        [6] $OPCODE("DEL").
         }
 
         REG/8(r) += 1.
 
-        $FLAGS(F/4, PF, SF, ZF, -).
+        $FLAGS(F/4, PF, SF, ZF, ?).
 
-        $OPCODE_CYCLES(10).
+        $CYCLES(2).  ; total cycles will be 10
     }
 
-OPCODE 00rrr001:
+    $CYCLES(8).
+    RETURN.
 
-    SELECT (r)
-    {
-    0:
+[FETCH 00000010]
 
-        $OPCODE_COMMENT("halt").
-        $OPCODE_ASM("HLT").
-
-        $HALT.
-        $OPCODE_CYCLES(8).
-
-    7:
-
-        $OPCODE_INVALID.
-        $OPCODE_CYCLES(10).
-    }
-    ELSE
-    {
-        $OPCODE_COMMENT("decrement register").
-
-        SELECT (r)
-        {
-        1:  $OPCODE_ASM("DEB").
-        2:  $OPCODE_ASM("DEC").
-        3:  $OPCODE_ASM("DED").
-        4:  $OPCODE_ASM("DEE").
-        5:  $OPCODE_ASM("DEH").
-        6:  $OPCODE_ASM("DEL").
-        }
-
-        REG/8(r) += 1.
-
-        $FLAGS(F/4, PF, SF, ZF, -).
-
-        $OPCODE_CYCLES(10).
-    }
-
-OPCODE 00000010:
-
-    $OPCODE_COMMENT("rotate left").
-    $OPCODE_ASM("RLC").
+    $COMMENT("rotate left").
+    $OPCODE("RLC").
 
     REG/8(A) <<<= 1.
 
-    $FLAGS(F/4, -, -, -, REG/8(A) & 1).
+    $FLAGS(F/4, ?, ?, ?, REG/8(A) & 1).
 
-    $OPCODE_CYCLES(10).
+    $CYCLES(10).
+    RETURN.
 
-OPCODE 000cc011:
+[FETCH 000cc011]
 
-    $OPCODE_COMMENT("return if condition is false").
+    $COMMENT("return if condition is false").
 
-    SELECT (r)
+    SELECT (c/2)
     {
-    0:  $OPCODE_ASM("RFC").
-    1:  $OPCODE_ASM("RFZ").
-    2:  $OPCODE_ASM("RFS").
-    3:  $OPCODE_ASM("RFP").
+    [0] $OPCODE("RFC").
+    [1] $OPCODE("RFZ").
+    [2] $OPCODE("RFS").
+    [3] $OPCODE("RFP").
     }
 
-    IF ((F/4 & (1 << c)) == 0)
+    IF (!(F/4 & (1 << c/2)))
     {
-        ADDRESS_STACK_POP.
+        STACK_POP.
 
-        $OPCODE_CYCLES(4).  ; total clocks will be 10
+        $CYCLES(4).  ; total cycles will be 10
     }
 
-    $OPCODE_CYCLES(6).
+    $CYCLES(6).
+    RETURN.
 
-OPCODE 001cc011:
+[FETCH 001cc011]
 
-    $OPCODE_COMMENT("return if condition is true").
+    $COMMENT("return if condition is true").
 
-    SELECT (r)
+    SELECT (c/2)
     {
-    0:  $OPCODE_ASM("RTC").
-    1:  $OPCODE_ASM("RTZ").
-    2:  $OPCODE_ASM("RTS").
-    3:  $OPCODE_ASM("RTP").
+    0:  $OPCODE("RTC").
+    1:  $OPCODE("RTZ").
+    2:  $OPCODE("RTS").
+    3:  $OPCODE("RTP").
     }
 
-    IF (F/4 & (1 << c) != 0)
+    IF (F/4 & (1 << c/2))
     {
-        ADDRESS_STACK_POP.
+        STACK_POP.
 
-        $OPCODE_CYCLES(4).  ; total clocks will be 10
+        $CYCLES(4).  ; total cycles will be 10
     }
 
-    $OPCODE_CYCLES(6).
+    $CYCLES(6).
+    RETURN.
 
-OPCODE 00000100 bbbbbbbb:
+[FETCH 00000100 bbbbbbbb]
 
-    $OPCODE_COMMENT("add immediate").
-    $OPCODE_ASM("ADI").
+    $COMMENT("add immediate").
+    $OPERAND($HEX(b/8)).
+    $OPCODE("ADI").
 
-    REG/8(A) += b.
+    REG/8(A) += b/8.
 
     $FLAGS(F/4, PF, SF, ZF, CF).
 
-    $OPCODE_CYCLES(16).
+    $CYCLES(16).
+    RETURN.
 
-OPCODE 00001100 bbbbbbbb:
+[FETCH 00001100 bbbbbbbb]
 
-    $OPCODE_COMMENT("add immediate with carry").
-    $OPCODE_ASM("ACI").
+    $COMMENT("add immediate with carry").
+    $OPERAND($HEX(b/8)).
+    $OPCODE("ACI").
 
-    REG/8(A) += b + (F/4 & 1).
-
-    $FLAGS(F/4, PF, SF, ZF, CF).
-
-    $OPCODE_CYCLES(16).
-
-OPCODE 00010100 bbbbbbbb:
-
-    $OPCODE_COMMENT("subtract immediate").
-    $OPCODE_ASM("SUI").
-
-    REG/8(A) -= b.
+    REG/8(A) += b/8 + (F/4 & 1).
 
     $FLAGS(F/4, PF, SF, ZF, CF).
 
-    $OPCODE_CYCLES(16).
+    $CYCLES(16).
+    RETURN.
 
-OPCODE 00011100 bbbbbbbb:
+[FETCH 00010100 bbbbbbbb]
 
-    $OPCODE_COMMENT("subtract immediate with borrow").
-    $OPCODE_ASM("SBI").
+    $COMMENT("subtract immediate").
+    $OPERAND($HEX(b/8)).
+    $OPCODE("SUI").
 
-    REG/8(A) -= b + (F/4 & 1).
+    REG/8(A) -= b/8.
 
     $FLAGS(F/4, PF, SF, ZF, CF).
 
-    $OPCODE_CYCLES(16).
+    $CYCLES(16).
+    RETURN.
 
-OPCODE 001x0010:
+[FETCH 00011100 bbbbbbbb]
+
+    $COMMENT("subtract immediate with borrow").
+    $OPERAND($HEX(b/8)).
+    $OPCODE("SBI").
+
+    REG/8(A) -= b/8 + (F/4 & 1).
+
+    $FLAGS(F/4, PF, SF, ZF, CF).
+
+    $CYCLES(16).
+    RETURN.
+
+[FETCH 001x0010]
 
     $OPCODE_INVALID.
-    $OPCODE_CYCLES(10).
 
-OPCODE 00100100 bbbbbbbb:
+    $CYCLES(10).
+    RETURN.
 
-    $OPCODE_COMMENT("AND immediate").
-    $OPCODE_ASM("NDI").
+[FETCH 00100100 bbbbbbbb]
 
-    REG/8(A) &= b.
+    $COMMENT("AND immediate").
+    $OPERAND($HEX(b/8)).
+    $OPCODE("NDI").
 
-    $FLAGS(F/4, PF, SF, ZF, CF).
-
-    $OPCODE_CYCLES(16).
-
-OPCODE 00101100 bbbbbbbb:
-
-    $OPCODE_COMMENT("XOR immediate").
-    $OPCODE_ASM("XRI").
-
-    REG/8(A) ^= b.
+    REG/8(A) &= b/8.
 
     $FLAGS(F/4, PF, SF, ZF, CF).
 
-    $OPCODE_CYCLES(16).
+    $CYCLES(16).
+    RETURN.
 
-OPCODE 00110100 bbbbbbbb:
+[FETCH 00101100 bbbbbbbb]
 
-    $OPCODE_COMMENT("OR immediate").
-    $OPCODE_ASM("ORI").
+    $COMMENT("XOR immediate").
+    $OPERAND($HEX(b/8)).
+    $OPCODE("XRI").
 
-    REG/8(A) |= b.
-
-    $FLAGS(F/4, PF, SF, ZF, CF).
-
-    $OPCODE_CYCLES(16).
-
-OPCODE 00111100 bbbbbbbb:
-
-    $OPCODE_COMMENT("compare immediate").
-    $OPCODE_ASM("CPI").
-
-    REG/8(A) - b.
+    REG/8(A) ^= b/8.
 
     $FLAGS(F/4, PF, SF, ZF, CF).
 
-    $OPCODE_CYCLES(16).
+    $CYCLES(16).
+    RETURN.
 
-OPCODE 00aaa101:
+[FETCH 00110100 bbbbbbbb]
 
-    $OPCODE_COMMENT("restart").
-    $OPCODE_ASM("RST").
+    $COMMENT("OR immediate").
+    $OPERAND($HEX(b/8)).
+    $OPCODE("ORI").
 
-    ADDRESS_STACK_PUSH.
+    REG/8(A) |= b/8.
 
-    $ = a << 3.
+    $FLAGS(F/4, PF, SF, ZF, CF).
 
-    $OPCODE_CYCLES(10).
+    $CYCLES(16).
+    RETURN.
 
-OPCODE 00rrr110 bbbbbbbb:
+[FETCH 00111100 bbbbbbbb]
 
-    IF (r < 7)
+    $COMMENT("compare immediate").
+    $OPERAND($HEX(b/8)).
+    $OPCODE("CPI").
+
+    REG/8(A) - b/8.
+
+    $FLAGS(F/4, PF, SF, ZF, CF).
+
+    $CYCLES(16).
+    RETURN.
+
+[FETCH 00aaa101]
+
+    $COMMENT("restart").
+    $OPERAND($HEX(UINT/14(a/3 << 3))).
+    $OPCODE("RST").
+
+    STACK_PUSH.
+
+    $ = a/3 << 3.
+
+    $CYCLES(10).
+    RETURN.
+
+[FETCH 00rrr110 bbbbbbbb]
+
+    $OPERAND($HEX(b/8)).
+
+    IF (r/3 < 7)
     {
-        $OPCODE_COMMENT("load register immediate").
+        $COMMENT("load register immediate").
 
-        SELECT (r)
+        SELECT (r/3)
         {
-        0:  $OPCODE_ASM("LAI").
-        1:  $OPCODE_ASM("LBI").
-        2:  $OPCODE_ASM("LCI").
-        3:  $OPCODE_ASM("LDI").
-        4:  $OPCODE_ASM("LEI").
-        5:  $OPCODE_ASM("LHI").
-        6:  $OPCODE_ASM("LLI").
+        [0] $OPCODE("LAI").
+        [1] $OPCODE("LBI").
+        [2] $OPCODE("LCI").
+        [3] $OPCODE("LDI").
+        [4] $OPCODE("LEI").
+        [5] $OPCODE("LHI").
+        [6] $OPCODE("LLI").
         }
 
-        REG/8(r) = b.
-
-        $OPCODE_CYCLES(16).
+        REG/8(r/3) = b/8.
     }
     ELSE
     {
-        $OPCODE_COMMENT("load register immediate").
-        $OPCODE_ASM("LMI").
+        $COMMENT("load memory immediate").
+        $OPCODE("LMI").
 
-        MEM/8(HL/14) = b.
+        MEM/8(HL/14) = b/8.
 
-        $OPCODE_CYCLES(18).
+        $CYCLES(2).  ; total cycles will be 18
     }
 
-OPCODE 00xxx111:
+    $CYCLES(16).
+    RETURN.
 
-    $OPCODE_COMMENT("unconditional return").
-    $OPCODE_ASM("RET").
+[FETCH 00???111]
 
-    ADDRESS_STACK_POP.
+    $COMMENT("unconditional return").
+    $OPCODE("RET").
 
-    $OPCODE_CYCLES(10).
+    STACK_POP.
 
-OPCODE 00001010:
+    $CYCLES(10).
+    RETURN.
 
-    $OPCODE_COMMENT("rotate right").
-    $OPCODE_ASM("RRC").
+[FETCH 00001010]
 
-    $FLAGS(F/4, -, -, -, REG/8(A) & 1).
+    $COMMENT("rotate right").
+    $OPCODE("RRC").
+
+    $FLAGS(F/4, ?, ?, ?, REG/8(A) & 1).
 
     REG/8(A) >>>= 1.
 
-    $OPCODE_CYCLES(10).
+    $CYCLES(10).
+    RETURN.
 
-OPCODE 00010010:
+[FETCH 00010010]
 
-    $OPCODE_COMMENT("rotate arithmetic left").
-    $OPCODE_ASM("RAL").
+    $COMMENT("rotate arithmetic left").
+    $OPCODE("RAL").
 
     REG/8(A) <<<= 1.
 
@@ -355,12 +397,13 @@ OPCODE 00010010:
     REG/8(A) ^= F:C/1.
     F:C/1 ^= REG/8(A).
 
-    $OPCODE_CYCLES(10).
+    $CYCLES(10).
+    RETURN.
 
-OPCODE 00011010:
+[FETCH 00011010]
 
-    $OPCODE_COMMENT("rotate arithmetic right").
-    $OPCODE_ASM("RAR").
+    $COMMENT("rotate arithmetic right").
+    $OPCODE("RAR").
 
     F:C/1 ^= REG/8(A).
     REG/8(A) ^= F:C/1.
@@ -368,286 +411,513 @@ OPCODE 00011010:
 
     REG/8(A) >>>= 1.
 
-    $OPCODE_CYCLES(10).
+    $CYCLES(10).
+    RETURN.
 
-OPCODE 010cc000 llllllll xxhhhhhh:
+[FETCH 010cc000 llllllll ??hhhhhh]
 
-    $OPCODE_COMMENT("jump if condition is false").
+    $COMMENT("jump if condition is false").
+    $OPERAND($HEX(UINT/14(h/8, l/8))).
 
-    SELECT (r)
+    SELECT (c/2)
     {
-    0:  $OPCODE_ASM("JFC").
-    1:  $OPCODE_ASM("JFZ").
-    2:  $OPCODE_ASM("JFS").
-    3:  $OPCODE_ASM("JFP").
+    [0] $OPCODE("JFC").
+    [1] $OPCODE("JFZ").
+    [2] $OPCODE("JFS").
+    [3] $OPCODE("JFP").
     }
 
-    IF ((F/4 & (1 << c)) == 0)
+    IF (!(F/4 & (1 << c/2)))
     {
-        $ = UINT/14(h, l).
+        $ = UINT/14(h/8, l/8).
 
-        $OPCODE_CYCLES(4).  ; total clocks will be 22
+        $CYCLES(4).  ; total cycles will be 22
     }
 
-    $OPCODE_CYCLES(18).
+    $CYCLES(18).
+    RETURN.
 
-OPCODE 011cc000 llllllll xxhhhhhh:
+[FETCH 011cc000 llllllll ??hhhhhh]
 
-    $OPCODE_COMMENT("jump if condition is true").
+    $COMMENT("jump if condition is true").
+    $OPERAND($HEX(UINT/14(h/8, l/8))).
 
-    SELECT (r)
+    SELECT (c/2)
     {
-    0:  $OPCODE_ASM("JTC").
-    1:  $OPCODE_ASM("JTZ").
-    2:  $OPCODE_ASM("JTS").
-    3:  $OPCODE_ASM("JTP").
+    [0] $OPCODE("JTC").
+    [1] $OPCODE("JTZ").
+    [2] $OPCODE("JTS").
+    [3] $OPCODE("JTP").
     }
 
-    IF (F/4 & (1 << c) != 0)
+    IF (F/4 & (1 << c/2))
     {
-        $ = UINT/14(h, l).
+        $ = UINT/14(h/8, l/8).
 
-        $OPCODE_CYCLES(4).  ; total clocks will be 22
+        $CYCLES(4).  ; total cycles will be 22
     }
 
-    $OPCODE_CYCLES(18).
+    $CYCLES(18).
+    RETURN.
 
-OPCODE 01mmmmm1:
+[FETCH 01mmmmm1]
 
-    IF (m < 8)
+    IF (m/5 < 8)
     {
-        ; INP (input from port):
+        $COMMENT("input from port").
+        $OPERAND($DEC(UINT(m/5))).
+        $OPCODE("INP").
 
-        REG/8(A) = PORT/8(m).
+        REG/8(A) = PORT/8(m/5).
 
-        $OPCODE_CYCLES(16).
-    }
-    ELSE
-    {
-        ; OUT (output to port):
-
-        PORT/8(m) = REG/8(A).
-
-        $OPCODE_CYCLES(12).
-    }
-
-OPCODE 010cc010 llllllll xxhhhhhh:
-
-    ; CFc (call if condition is false):
-
-    IF ((F/4 & (1 << c)) == 0)
-    {
-        ADDRESS_STACK_PUSH.
-
-        $ = UINT/14(h, l).
-
-        $OPCODE_CYCLES(4).  ; total clocks will be 22
-    }
-
-    $OPCODE_CYCLES(18).
-
-OPCODE 011cc010 llllllll xxhhhhhh:
-
-    ; CTc (call if condition is true):
-
-    IF (F/4 & (1 << c) != 0)
-    {
-        ADDRESS_STACK_PUSH.
-
-        $ = UINT/14(h, l).
-
-        $OPCODE_CYCLES(4).  ; total clocks will be 22
-    }
-
-    $OPCODE_CYCLES(18).
-
-OPCODE 01xxx100 llllllll xxhhhhhh:
-
-    ; JMP (unconditional jump):
-
-    $ = UINT/14(h, l).
-
-    $OPCODE_CYCLES(22).
-
-OPCODE 01xxx110 llllllll xxhhhhhh:
-
-    ; CAL (unconditional call):
-
-    ADDRESS_STACK_PUSH.
-
-    $ = UINT/14(h, l).
-
-    $OPCODE_CYCLES(22).
-
-OPCODE 10000rrr:
-
-    IF (r < 7)
-    {
-        ; ADr (add register):
-
-        REG/8(A) += REG/8(r).
-
-        $OPCODE_CYCLES(10).
+        $CYCLES(4).  ; total cycles will be 16
     }
     ELSE
     {
-        ; ADM (add memory):
+        $COMMENT("output to port").
+        $OPERAND($DEC(UINT(m/5))).
+        $OPCODE("OUT").
+
+        PORT/8(m/5) = REG/8(A).
+
+    }
+
+    $CYCLES(12).
+    RETURN.
+
+[FETCH 010cc010 llllllll ??hhhhhh]
+
+    $COMMENT("call if condition is false").
+    $OPERAND($HEX(UINT/14(h/8, l/8))).
+
+    SELECT (c/2)
+    {
+    [0] $OPCODE("CFC").
+    [1] $OPCODE("CFZ").
+    [2] $OPCODE("CFS").
+    [3] $OPCODE("CFP").
+    }
+
+    IF (!(F/4 & (1 << c/2)))
+    {
+        STACK_PUSH.
+
+        $ = UINT/14(h/8, l/8).
+
+        $CYCLES(4).  ; total cycles will be 22
+    }
+
+    $CYCLES(18).
+    RETURN.
+
+[FETCH 011cc010 llllllll ??hhhhhh]
+
+    $COMMENT("call if condition is true").
+    $OPERAND($HEX(UINT/14(h/8, l/8))).
+
+    SELECT (c/2)
+    {
+    [0] $OPCODE("CTC").
+    [1] $OPCODE("CTZ").
+    [2] $OPCODE("CTS").
+    [3] $OPCODE("CTP").
+    }
+
+    IF (F/4 & (1 << c/2))
+    {
+        STACK_PUSH.
+
+        $ = UINT/14(h/8, l/8).
+
+        $CYCLES(4).  ; total cycles will be 22
+    }
+
+    $CYCLES(18).
+    RETURN.
+
+[FETCH 01???100 llllllll ??hhhhhh]
+
+    $COMMENT("unconditional jump").
+    $OPERAND($HEX(UINT/14(h/8, l/8))).
+    $OPCODE("JMP").
+
+    $ = UINT/14(h/8, l/8).
+
+    $CYCLES(22).
+    RETURN.
+
+[FETCH 01???110 llllllll ??hhhhhh]
+
+    $COMMENT("unconditional call").
+    $OPERAND($HEX(UINT/14(h/8, l/8))).
+    $OPCODE("CAL").
+
+    STACK_PUSH.
+
+    $ = UINT/14(h/8, l/8).
+
+    $CYCLES(22).
+    RETURN.
+
+[FETCH 10000rrr]
+
+    IF (r/3 < 7)
+    {
+        $COMMENT("add register").
+
+        SELECT (r/3)
+        {
+        [0] $OPCODE("ADA").
+        [1] $OPCODE("ADB").
+        [2] $OPCODE("ADC").
+        [3] $OPCODE("ADD").
+        [4] $OPCODE("ADE").
+        [5] $OPCODE("ADH").
+        [6] $OPCODE("ADL").
+        }
+
+        REG/8(A) += REG/8(r/3).
+    }
+    ELSE
+    {
+        $COMMENT("add memory").
+        $OPCODE("ADM").
 
         REG/8(A) += MEM/8(HL/14).
 
-        $OPCODE_CYCLES(16).
+        $CYCLES(6).  ; total cycles will be 16
     }
 
     $FLAGS(F/4, PF, SF, ZF, CF).
 
-OPCODE 10001rrr:
+    $CYCLES(10).
+    RETURN.
 
-    IF (r < 7)
+[FETCH 10001rrr]
+
+    IF (r/3 < 7)
     {
-        ; ACr (add register with carry):
+        $COMMENT("add register with carry").
 
-        REG/8(A) += REG/8(r) + (F/4 & 1).
+        SELECT (r/3)
+        {
+        [0] $OPCODE("ACA").
+        [1] $OPCODE("ACB").
+        [2] $OPCODE("ACC").
+        [3] $OPCODE("ACD").
+        [4] $OPCODE("ACE").
+        [5] $OPCODE("ACH").
+        [6] $OPCODE("ACL").
+        }
 
-        $OPCODE_CYCLES(10).
+        REG/8(A) += REG/8(r/3) + (F/4 & 1).
     }
     ELSE
     {
-        ; ACM (add memory with carry):
+        $COMMENT("add memory with carry").
+        $OPCODE("ACM").
 
         REG/8(A) += MEM/8(HL/14) + (F/4 & 1).
 
-        $OPCODE_CYCLES(16).
+        $CYCLES(6).  ; total cycles will be 16
     }
 
     $FLAGS(F/4, PF, SF, ZF, CF).
 
-OPCODE 10010rrr:
+    $CYCLES(10).
+    RETURN.
 
-    IF (r < 7)
+[FETCH 10010rrr]
+
+    IF (r/3 < 7)
     {
-        ; SUr (sub register):
+        $COMMENT("sub register").
 
-        REG/8(A) -= REG/8(r).
+        SELECT (r/3)
+        {
+        [0] $OPCODE("SUA").
+        [1] $OPCODE("SUB").
+        [2] $OPCODE("SUC").
+        [3] $OPCODE("SUD").
+        [4] $OPCODE("SUE").
+        [5] $OPCODE("SUH").
+        [6] $OPCODE("SUL").
+        }
 
-        $OPCODE_CYCLES(10).
+        REG/8(A) -= REG/8(r/3).
     }
     ELSE
     {
-        ; SUM (sub memory):
+        $COMMENT("sub memory").
+        $OPCODE("SUM").
 
         REG/8(A) -= MEM/8(HL/14).
 
-        $OPCODE_CYCLES(16).
+        $CYCLES(6).  ; total cycles will be 16
     }
 
     $FLAGS(F/4, PF, SF, ZF, CF).
 
-OPCODE 10011rrr:
+    $CYCLES(10).
+    RETURN.
 
-    IF (r < 7)
+[FETCH 10011rrr]
+
+    IF (r/3 < 7)
     {
-        ; SBr (sub register with borrow):
+        $COMMENT("sub register with borrow").
 
-        REG/8(A) -= REG/8(r) + (F/4 & 1).
+        SELECT (r/3)
+        {
+        [0] $OPCODE("SBA").
+        [1] $OPCODE("SBB").
+        [2] $OPCODE("SBC").
+        [3] $OPCODE("SBD").
+        [4] $OPCODE("SBE").
+        [5] $OPCODE("SBH").
+        [6] $OPCODE("SBL").
+        }
 
-        $OPCODE_CYCLES(10).
+        REG/8(A) -= REG/8(r/3) + (F/4 & 1).
     }
     ELSE
     {
-        ; SBM (sub memory with borrow):
+        $COMMENT("sub memory with borrow").
+        $OPCODE("SBM").
 
         REG/8(A) -= MEM/8(HL/14) + (F/4 & 1).
 
-        $OPCODE_CYCLES(16).
+        $CYCLES(6).  ; total cycles will be 16
     }
 
     $FLAGS(F/4, PF, SF, ZF, CF).
 
-OPCODE 10100rrr:
+    $CYCLES(10).
+    RETURN.
 
-    IF (r < 7)
+[FETCH 10100rrr]
+
+    IF (r/3 < 7)
     {
-        ; NDr (and register):
+        $COMMENT("and register").
 
-        REG/8(A) &= REG/8(r).
+        SELECT (r/3)
+        {
+        [0] $OPCODE("NDA").
+        [1] $OPCODE("NDB").
+        [2] $OPCODE("NDC").
+        [3] $OPCODE("NDD").
+        [4] $OPCODE("NDE").
+        [5] $OPCODE("NDH").
+        [6] $OPCODE("NDL").
+        }
 
-        $OPCODE_CYCLES(10).
+        REG/8(A) &= REG/8(r/3).
     }
     ELSE
     {
-        ; NDM (and memory):
+        $COMMENT("and memory").
+        $OPCODE("NDM").
 
         REG/8(A) &= MEM/8(HL/14).
 
-        $OPCODE_CYCLES(16).
+        $CYCLES(6).  ; total cycles will be 16
     }
 
     $FLAGS(F/4, PF, SF, ZF, CF).
 
-OPCODE 10101rrr:
+    $CYCLES(10).
+    RETURN.
 
-    IF (r < 7)
+[FETCH 10101rrr]
+
+    IF (r/3 < 7)
     {
-        ; XRr (xor register):
+        $COMMENT("xor register").
 
-        REG/8(A) ^= REG/8(r).
+        SELECT (r/3)
+        {
+        [0] $OPCODE("XRA").
+        [1] $OPCODE("XRB").
+        [2] $OPCODE("XRC").
+        [3] $OPCODE("XRD").
+        [4] $OPCODE("XRE").
+        [5] $OPCODE("XRH").
+        [6] $OPCODE("XRL").
+        }
 
-        $OPCODE_CYCLES(10).
+        REG/8(A) ^= REG/8(r/3).
     }
     ELSE
     {
-        ; XRM (xor memory):
+        $COMMENT("xor memory").
+        $OPCODE("XRM").
 
         REG/8(A) ^= MEM/8(HL/14).
 
-        $OPCODE_CYCLES(16).
+        $CYCLES(6).  ; total cycles will be 16
     }
 
     $FLAGS(F/4, PF, SF, ZF, CF).
 
-OPCODE 10110rrr:
+    $CYCLES(10).
+    RETURN.
 
-    IF (r < 7)
+[FETCH 10110rrr]
+
+    IF (r/3 < 7)
     {
-        ; ORr (or register):
+        $COMMENT("or register").
 
-        REG/8(A) |= REG/8(r).
+        SELECT (r/3)
+        {
+        [0] $OPCODE("ORA").
+        [1] $OPCODE("ORB").
+        [2] $OPCODE("ORC").
+        [3] $OPCODE("ORD").
+        [4] $OPCODE("ORE").
+        [5] $OPCODE("ORH").
+        [6] $OPCODE("ORL").
+        }
 
-        $OPCODE_CYCLES(10).
+        REG/8(A) |= REG/8(r/3).
     }
     ELSE
     {
-        ; ORM (or memory):
+        $COMMENT("or memory").
+        $OPCODE("ORM").
 
         REG/8(A) |= MEM/8(HL/14).
 
-        $OPCODE_CYCLES(16).
+        $CYCLES(6).  ; total cycles will be 16
     }
 
     $FLAGS(F/4, PF, SF, ZF, CF).
 
-OPCODE 10111rrr:
+    $CYCLES(10).
+    RETURN.
 
-    IF (r < 7)
+[FETCH 10111rrr]
+
+    IF (r/3 < 7)
     {
-        ; CPr (compare register):
+        $COMMENT("compare register").
 
-        REG/8(A) - REG/8(r).
+        SELECT (r/3)
+        {
+        [0] $OPCODE("CPA").
+        [1] $OPCODE("CPB").
+        [2] $OPCODE("CPC").
+        [3] $OPCODE("CPD").
+        [4] $OPCODE("CPE").
+        [5] $OPCODE("CPH").
+        [6] $OPCODE("CPL").
+        }
 
-        $OPCODE_CYCLES(10).
+        REG/8(A) - REG/8(r/3).
     }
     ELSE
     {
-        ; CPM (compare memory):
+        $COMMENT("compare memory").
+        $OPCODE("CPM").
 
         REG/8(A) - MEM/8(HL/14).
 
-        $OPCODE_CYCLES(16).
+        $CYCLES(6).  ; total cycles will be 16
     }
 
     $FLAGS(F/4, PF, SF, ZF, CF).
 
-OPCODE 11dddsss:
+    $CYCLES(10).
+    RETURN.
+
+[FETCH 11dddsss]
+
+    IF ((d/3 < 7) && (s/3 < 7))
+    {
+        $COMMENT("load register from register").
+
+        SELECT ((d/3 << 4) | s/3)
+        {
+        [0x00]  $OPCODE("NOP"). [0x01]  $OPCODE("LAB"). [0x02]  $OPCODE("LAC").
+        [0x03]  $OPCODE("LAD"). [0x04]  $OPCODE("LAE"). [0x05]  $OPCODE("LAH").
+        [0x06]  $OPCODE("LAL").
+        [0x10]  $OPCODE("LBA"). [0x11]  $OPCODE("LBB"). [0x12]  $OPCODE("LBC").
+        [0x13]  $OPCODE("LBD"). [0x14]  $OPCODE("LBE"). [0x15]  $OPCODE("LBH").
+        [0x16]  $OPCODE("LBL").
+        [0x20]  $OPCODE("LCA"). [0x21]  $OPCODE("LCB"). [0x22]  $OPCODE("LCC").
+        [0x23]  $OPCODE("LCD"). [0x24]  $OPCODE("LCE"). [0x25]  $OPCODE("LCH").
+        [0x26]  $OPCODE("LCL").
+        [0x30]  $OPCODE("LDA"). [0x31]  $OPCODE("LDB"). [0x32]  $OPCODE("LDC").
+        [0x33]  $OPCODE("LDD"). [0x34]  $OPCODE("LDE"). [0x35]  $OPCODE("LDH").
+        [0x36]  $OPCODE("LDL").
+        [0x40]  $OPCODE("LEA"). [0x41]  $OPCODE("LEB"). [0x42]  $OPCODE("LEC").
+        [0x43]  $OPCODE("LED"). [0x44]  $OPCODE("LEE"). [0x45]  $OPCODE("LEH").
+        [0x46]  $OPCODE("LEL").
+        [0x50]  $OPCODE("LHA"). [0x51]  $OPCODE("LHB"). [0x52]  $OPCODE("LHC").
+        [0x53]  $OPCODE("LHD"). [0x54]  $OPCODE("LHE"). [0x55]  $OPCODE("LHH").
+        [0x56]  $OPCODE("LHL").
+        [0x60]  $OPCODE("LLA"). [0x61]  $OPCODE("LLB"). [0x62]  $OPCODE("LLC").
+        [0x63]  $OPCODE("LLD"). [0x64]  $OPCODE("LLE"). [0x65]  $OPCODE("LLH").
+        [0x66]  $OPCODE("LLL").
+        }
+
+        REG/8(d/3) = REG/8(s/3).
+
+        $CYCLES(2).  ; total cycles will be 10
+    }
+    ELIF (d/3 < 7)
+    {
+        $COMMENT("load register from memory").
+
+        SELECT (d/3)
+        {
+        [0] $OPCODE("LAM").
+        [1] $OPCODE("LBM").
+        [2] $OPCODE("LCM").
+        [3] $OPCODE("LDM").
+        [4] $OPCODE("LEM").
+        [5] $OPCODE("LHM").
+        [6] $OPCODE("LLM").
+        }
+
+        REG/8(d/3) = MEM/8(HL/14).
+
+        $CYCLES(8).  ; total cycles will be 10
+    }
+    ELIF (s < 7)
+    {
+        $COMMENT("load memory from register").
+
+        SELECT (s/3)
+        {
+        [0] $OPCODE("LMA").
+        [1] $OPCODE("LMB").
+        [2] $OPCODE("LMC").
+        [3] $OPCODE("LMD").
+        [4] $OPCODE("LME").
+        [5] $OPCODE("LMH").
+        [6] $OPCODE("LML").
+        }
+
+        MEM/8(HL/14) = REG/8(d/3).
+
+        $CYCLES(8).  ; total cycles will be 10
+    }
+    ELSE
+    {
+        $COMMENT("compare memory").
+        $OPCODE("CPM").
+
+        REG/8(A) - MEM/8(HL/14).
+
+        $CYCLES(6).  ; total cycles will be 16
+    }
+
+    $FLAGS(F/4, PF, SF, ZF, CF).
+
+    $CYCLES(10).
+    RETURN.
 
     IF (d < 7) && (s < 7))
     {
@@ -655,7 +925,7 @@ OPCODE 11dddsss:
 
         REG/8(d) = REG/8(s).
 
-        $OPCODE_CYCLES(10).
+        $CYCLES(10).
     }
     ELIF (d < 7)
     {
@@ -663,7 +933,7 @@ OPCODE 11dddsss:
 
         REG/8(d) = MEM/8(HL/14).
 
-        $OPCODE_CYCLES(16).
+        $CYCLES(16).
     }
     ELIF (s < 7)
     {
@@ -671,19 +941,22 @@ OPCODE 11dddsss:
 
         MEM/8(HL/14) = REG/8(d).
 
-        $OPCODE_CYCLES(16).
+        $CYCLES(16).
     }
     ELSE
     {
-        ; HLT (halt):
+        $COMMENT("halt").
+        $OPCODE("HLT").
 
         $HALT.
-        $OPCODE_CYCLES(8).
     }
 
-INT:
+    $CYCLES(8).
+    RETURN.
+
+[EVENT INT/8]
 
     ; interrupt request:
 
-    $OPCODE_FETCH_ONCE(INT/8).  ; fetch one instruction, do not advance $
+    $SINGLE_FETCH(INT/8).  ; fetch one instruction byte (does not use $)
 }
